@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
-# This file is part of PREDICTOR.
+#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of ModelManager.
 #
-# PREDICTOR is free software; you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+#  ModelManager is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+#  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
@@ -18,12 +18,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import gzip
-import dill
-import hashlib
-import os
-import subprocess as sp
-import pandas as pd
+from sys import stderr
+from traceback import format_exc
+from gzip import open as gzip_open
+from dill import load, dump
+from hashlib import md5
+from os import listdir
+from os.path import join, abspath, exists, splitext, dirname, getsize
+from subprocess import Popen, PIPE, STDOUT
+from pandas import Series, merge
 from collections import defaultdict
 from math import ceil
 from functools import reduce
@@ -32,12 +35,13 @@ from MODtools.config import MOLCONVERT
 from MODtools.consensus import ConsensusDragos
 from CGRtools.files.SDFrw import SDFread
 from CGRtools.files.RDFrw import RDFread
-from . import chemaxpost, ModelType, ResultType
+from ..config import ModelType, ResultType
+from ..utils import chemax_post
 
 
 class Model(ConsensusDragos):
     def __init__(self, file):
-        tmp = dill.load(gzip.open(file, 'rb'))
+        tmp = load(gzip_open(file, 'rb'))
         self.__models = tmp['models']
         self.__conf = tmp['config']
         self.__workpath = '.'
@@ -70,7 +74,7 @@ class Model(ConsensusDragos):
 
     @staticmethod
     def __merge_wrap(x, y):
-        return pd.merge(x, y, how='outer', left_index=True, right_index=True)
+        return merge(x, y, how='outer', left_index=True, right_index=True)
 
     @staticmethod
     def __report_atoms(atoms):
@@ -79,8 +83,8 @@ class Model(ConsensusDragos):
     def get_results(self, structures):
         # prepare input file
         if len(structures) == 1:
-            chemaxed = chemaxpost('calculate/molExport',
-                                  dict(structure=structures[0]['data'], parameters=self.__format))
+            chemaxed = chemax_post('calculate/molExport',
+                                   dict(structure=structures[0]['data'], parameters=self.__format))
             if not chemaxed:
                 return False
             additions = dict(pressure=structures[0]['pressure'], temperature=structures[0]['temperature'])
@@ -90,8 +94,8 @@ class Model(ConsensusDragos):
 
             data_str = chemaxed['structure']
         else:
-            with sp.Popen([MOLCONVERT, self.__format],
-                          stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT, cwd=self.__workpath) as convert_mol:
+            with Popen([MOLCONVERT, self.__format],
+                       stdin=PIPE, stdout=PIPE, stderr=STDOUT, cwd=self.__workpath) as convert_mol:
                 data_str = convert_mol.communicate(input=''.join(s['data'] for s in structures).encode())[0].decode()
                 if convert_mol.returncode != 0:
                     return False
@@ -117,8 +121,8 @@ class Model(ConsensusDragos):
         all_predictions = reduce(self.__merge_wrap, (x['prediction'] for x in res))
         in_predictions = all_predictions.mask(all_domains ^ True)
 
-        trust = pd.Series(5, index=all_predictions.index)
-        report = pd.Series('', index=all_predictions.index)
+        trust = Series(5, index=all_predictions.index)
+        report = Series('', index=all_predictions.index)
 
         # mean predicted property
         avg_all = all_predictions.mean(axis=1)
@@ -174,39 +178,38 @@ class Model(ConsensusDragos):
 class ModelLoader(object):
     def __init__(self, fast_load=True):
         self.__skip_md5 = fast_load
-        self.__models_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modelbuilder'))
-        self.__cache_path = os.path.join(self.__models_path, '.cache')
+        self.__models_path = abspath(join(dirname(__file__), 'modelbuilder'))
+        self.__cache_path = join(self.__models_path, '.cache')
         self.__models = self.__scan_models()
 
     @staticmethod
     def __md5(name):
-        hash_md5 = hashlib.md5()
+        hash_md5 = md5()
         with open(name, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
 
     def __scan_models(self):
-        files = {x['file']: x for x in
-                 dill.load(open(self.__cache_path, 'rb'))} if os.path.exists(self.__cache_path) else {}
+        files = {x['file']: x for x in load(open(self.__cache_path, 'rb'))} if exists(self.__cache_path) else {}
         cache = {}
-        for file in (os.path.join(self.__models_path, f) for f in os.listdir(self.__models_path)
-                     if os.path.splitext(f)[-1] == '.model'):
+        for file in (join(self.__models_path, f) for f in listdir(self.__models_path)
+                     if splitext(f)[-1] == '.model'):
 
-            if file not in files or files[file]['size'] != os.path.getsize(file) or \
+            if file not in files or files[file]['size'] != getsize(file) or \
                             not self.__skip_md5 and self.__md5(file) != files[file]['hash']:
                 try:
                     model = Model(file)
                     cache[model.get_name()] = dict(file=file, hash=self.__md5(file), example=model.get_example(),
                                                    description=model.get_description(),
-                                                   size=os.path.getsize(file),
+                                                   size=getsize(file),
                                                    type=model.get_type(), name=model.get_name())
-                except:
-                    pass
+                except Exception:
+                    print('model %s consist errors: %s' % (file, format_exc()), file=stderr)
             else:
                 cache[files[file]['name']] = files[file]
 
-        dill.dump(list(cache.values()), open(self.__cache_path, 'wb'))
+        dump(list(cache.values()), open(self.__cache_path, 'wb'))
         return cache
 
     def load_model(self, name):

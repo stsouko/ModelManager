@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
-# This file is part of PREDICTOR.
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of ModelManager.
 #
-# PREDICTOR is free software; you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+#  ModelManager is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+#  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
@@ -21,7 +21,8 @@
 import subprocess as sp
 from os import path
 from io import StringIO
-from . import chemaxpost, ModelType, ResultType
+from ..config import ModelType, ResultType
+from ..utils import chemax_post
 from MODtools.config import MOLCONVERT
 from MODtools.descriptors.fragmentor import Fragmentor
 from MODtools.parsers import MBparser

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
-# This file is part of PREDICTOR.
+#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of ModelManager.
 #
-# PREDICTOR is free software; you can redistribute it and/or modify
+#  ModelManager is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -28,7 +28,8 @@ from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files import ReactionContainer, MoleculeContainer
 from MODtools.config import MOLCONVERT
-from . import get_additives, chemaxpost, ModelType, ResultType, StructureType, StructureStatus
+from ..utils import get_additives, chemax_post
+from ..config import ModelType, ResultType, StructureType, StructureStatus
 
 
 model_name = 'Preparer'
@@ -96,8 +97,8 @@ class Model(CGRcombo):
         return results
 
     def __parse_structure(self, structure):
-        chemaxed = chemaxpost('calculate/molExport',
-                              dict(structure=structure['data'], parameters="rdf", filterChain=self.__pre_filter_chain))
+        chemaxed = chemax_post('calculate/molExport',
+                               dict(structure=structure['data'], parameters="rdf", filterChain=self.__pre_filter_chain))
         if not chemaxed:
             return False
 
@@ -108,8 +109,8 @@ class Model(CGRcombo):
                 return False
             prepared = out_file.getvalue()
 
-        chemaxed = chemaxpost('calculate/molExport',
-                              dict(structure=prepared, parameters="mrv", filterChain=self.__post_filter_chain))
+        chemaxed = chemax_post('calculate/molExport',
+                               dict(structure=prepared, parameters="mrv", filterChain=self.__post_filter_chain))
         if not chemaxed:
             return False
 
@@ -256,7 +257,7 @@ class Model(CGRcombo):
     def chkreaction(self, structure):
         data = {"structure": structure, "parameters": "smiles:u",
                 "filterChain": [{"filter": "standardizer", "parameters": {"standardizerDefinition": "unmap"}}]}
-        smiles = chemaxpost('calculate/molExport', data)
+        smiles = chemax_post('calculate/molExport', data)
         if smiles:
             s, p = json.loads(smiles)['structure'].split('>>')
             ss = set(s.split('.'))
@@ -266,15 +267,15 @@ class Model(CGRcombo):
             if ss.intersection(ps):
                 return self.__warnings['pe']
 
-            st = chemaxpost('calculate/chemicalTerms', {"structure": s, "parameters": "majorTautomer()"})
-            pt = chemaxpost('calculate/chemicalTerms', {"structure": p, "parameters": "majorTautomer()"})
+            st = chemax_post('calculate/chemicalTerms', {"structure": s, "parameters": "majorTautomer()"})
+            pt = chemax_post('calculate/chemicalTerms', {"structure": p, "parameters": "majorTautomer()"})
             if st and pt:
-                st = chemaxpost('calculate/molExport',
-                                {"structure": json.loads(st)['result']['structureData']['structure'],
-                                 "parameters": "smiles:u"})
-                pt = chemaxpost('calculate/molExport',
-                                {"structure": json.loads(pt)['result']['structureData']['structure'],
-                                 "parameters": "smiles:u"})
+                st = chemax_post('calculate/molExport',
+                                 {"structure": json.loads(st)['result']['structureData']['structure'],
+                                  "parameters": "smiles:u"})
+                pt = chemax_post('calculate/molExport',
+                                 {"structure": json.loads(pt)['result']['structureData']['structure'],
+                                  "parameters": "smiles:u"})
                 if st and pt:
                     sts = set(json.loads(st)['structure'].split('.'))
                     pts = set(json.loads(pt)['structure'].split('.'))

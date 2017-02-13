@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
-#  This file is part of MWUI.
+#  This file is part of ModelManager.
 #
-#  MWUI is free software; you can redistribute it and/or modify
+#  ModelManager is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -19,8 +19,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import shutil
-import tempfile
+from shutil import rmtree
+from tempfile import mkdtemp
 from ModelManager import ModelSet
 
 
@@ -30,7 +30,7 @@ def cycle2(structures):
 
 
 def run(structures=None, model=None):
-    workpath = tempfile.mkdtemp(dir='/tmp')
+    workpath = mkdtemp(dir='/tmp')
     mod = ModelSet().load_model(model['name'], workpath=workpath)
 
     results = mod.get_results(structures) if mod is not None else None
@@ -56,5 +56,5 @@ def run(structures=None, model=None):
         for s in structures:
             s['models'] = [model]
 
-    shutil.rmtree(workpath)
+    rmtree(workpath)
     return structures

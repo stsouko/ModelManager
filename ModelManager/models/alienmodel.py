@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2016 Ramil Nugmanov <stsouko@live.ru>
-# This file is part of PREDICTOR.
+#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of ModelManager.
 #
-# PREDICTOR is free software; you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
+#  ModelManager is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+#  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU Affero General Public License for more details.
@@ -18,29 +18,33 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import json
-import os
-import dill
-import subprocess as sp
+from sys import stderr
+from traceback import format_exc
+from json import load as json_load
+from os import listdir
+from os.path import join, abspath, splitext, exists, dirname
+from dill import load, dump
+from subprocess import call, Popen, PIPE, STDOUT
 from io import StringIO
 from itertools import count
 from MODtools.config import MOLCONVERT
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
 from CGRtools.files import ReactionContainer, MoleculeContainer
-from . import chemaxpost, ModelType, ResultType
+from ..config import ModelType, ResultType
+from ..utils import chemax_post
 
 
 class Model(object):
     def __init__(self, directory):
         self.__conf = self.__load_model(directory)
-        self.__starter = [os.path.join(directory, self.__conf['start'])]
+        self.__starter = [join(directory, self.__conf['start'])]
         self.__workpath = '.'
 
     @staticmethod
     def __load_model(directory):
-        with open(os.path.join(directory, 'model.json')) as f:
-            tmp = json.load(f)
+        with open(join(directory, 'model.json')) as f:
+            tmp = json_load(f)
         return tmp
 
     def get_example(self):
@@ -59,18 +63,17 @@ class Model(object):
         self.__workpath = workpath
 
     def get_results(self, structures):
-        structure_file = os.path.join(self.__workpath, 'structures')
-        results_file = os.path.join(self.__workpath, 'results.csv')
+        structure_file = join(self.__workpath, 'structures')
+        results_file = join(self.__workpath, 'results.csv')
         # prepare input file
         if len(structures) == 1:
-            chemaxed = chemaxpost('calculate/molExport',
-                                  dict(structure=structures[0]['data'], parameters="rdf"))
+            chemaxed = chemax_post('calculate/molExport',
+                                   dict(structure=structures[0]['data'], parameters="rdf"))
             if not chemaxed:
                 return False
             data = chemaxed['structure']
         else:
-            with sp.Popen([MOLCONVERT, 'rdf'], stdin=sp.PIPE, stdout=sp.PIPE,
-                          stderr=sp.STDOUT, cwd=self.__workpath) as convert_mol:
+            with Popen([MOLCONVERT, 'rdf'], stdin=PIPE, stdout=PIPE, stderr=STDOUT, cwd=self.__workpath) as convert_mol:
                 data = convert_mol.communicate(input=''.join(s['data'] for s in structures).encode())[0].decode()
                 if convert_mol.returncode != 0:
                     return False
@@ -94,7 +97,7 @@ class Model(object):
         if len(structures) != next(counter):
             return False
 
-        if sp.call(self.__starter, cwd=self.__workpath) == 0:
+        if call(self.__starter, cwd=self.__workpath) == 0:
             results = []
             with open(results_file) as f:
                 header = [dict(key=k, type=ResultType[t]) for t, k in
@@ -114,17 +117,17 @@ class Model(object):
 
 
 class ModelLoader(object):
-    def __init__(self, **kwargs):
-        self.__models_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'alienmodel'))
-        self.__cache_path = os.path.join(self.__models_path, '.cache')
+    def __init__(self, **_):
+        self.__models_path = abspath(join(dirname(__file__), 'alienmodel'))
+        self.__cache_path = join(self.__models_path, '.cache')
         self.__models = self.__scan_models()
 
     def __scan_models(self):
         directories = {x['directory']: x for x in
-                       dill.load(open(self.__cache_path, 'rb'))} if os.path.exists(self.__cache_path) else {}
+                       load(open(self.__cache_path, 'rb'))} if exists(self.__cache_path) else {}
         cache = {}
-        for directory in (os.path.join(self.__models_path, f) for f in os.listdir(self.__models_path)
-                          if os.path.splitext(f)[-1] == '.model'):
+        for directory in (join(self.__models_path, f) for f in listdir(self.__models_path)
+                          if splitext(f)[-1] == '.model'):
 
             if directory not in directories:
                 try:
@@ -132,12 +135,12 @@ class ModelLoader(object):
                     cache[model.get_name()] = dict(directory=directory, example=model.get_example(),
                                                    description=model.get_description(),
                                                    type=model.get_type(), name=model.get_name())
-                except:
-                    pass
+                except Exception:
+                    print('module %s consist errors: %s' % (directory, format_exc()), file=stderr)
             else:
                 cache[directories[directory]['name']] = directories[directory]
 
-        dill.dump(list(cache.values()), open(self.__cache_path, 'wb'))
+        dump(list(cache.values()), open(self.__cache_path, 'wb'))
         return cache
 
     def load_model(self, name):
