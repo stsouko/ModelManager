@@ -19,8 +19,10 @@
 #  MA 02110-1301, USA.
 #
 import json
+from sys import stderr
+from traceback import format_exc
 from requests import post, get
-from MWUI.config import AdditiveType, ModelType, ResultType, StructureType, StructureStatus
+from MWUI.constants import AdditiveType, ModelType, ResultType, StructureType, StructureStatus
 from os import path, listdir
 
 
@@ -40,13 +42,13 @@ class ModelSet(object):
     def __scan_models(self):
         models = {}
         for module in listdir(path.dirname(__file__)):
-            if module.endswith('.py') and module != '__init__.py':
+            if module.endswith('.py') and module not in ('__init__.py', 'config.py', 'version.py'):
                 try:
                     model_loader = self.__loader(module[:-3])
                     for x in model_loader.get_models():
                         models[x['name']] = (module[:-3], x)
                 except:
-                    pass
+                    print('module %s consist errors: %s' % (module, format_exc()), file=stderr)
         return models
 
     def load_model(self, name, workpath='.'):
