@@ -29,7 +29,7 @@ from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files import ReactionContainer, MoleculeContainer
 from MODtools.config import MOLCONVERT
 from ..utils import get_additives, chemax_post
-from ..config import ModelType, ResultType, StructureType, StructureStatus
+from ..constants import ModelType, ResultType, StructureType, StructureStatus
 
 
 model_name = 'Preparer'

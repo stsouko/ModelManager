@@ -21,7 +21,7 @@
 import subprocess as sp
 from os import path
 from io import StringIO
-from ..config import ModelType, ResultType
+from ..constants import ModelType, ResultType
 from ..utils import chemax_post
 from MODtools.config import MOLCONVERT
 from MODtools.descriptors.fragmentor import Fragmentor

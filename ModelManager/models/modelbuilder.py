@@ -35,7 +35,7 @@ from MODtools.config import MOLCONVERT
 from MODtools.consensus import ConsensusDragos
 from CGRtools.files.SDFrw import SDFread
 from CGRtools.files.RDFrw import RDFread
-from ..config import ModelType, ResultType
+from ..constants import ModelType, ResultType
 from ..utils import chemax_post
 
 
@@ -66,7 +66,7 @@ class Model(ConsensusDragos):
     def set_work_path(self, workpath):
         self.__workpath = workpath
         for m in self.__models:
-            m.setworkpath(workpath)
+            m.set_work_path(workpath)
 
     @property
     def __format(self):

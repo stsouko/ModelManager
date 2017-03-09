@@ -18,7 +18,4 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-
-
-def version():
-    return '1.1.1'
+from MWUI.constants import AdditiveType, ModelType, ResultType, StructureType, StructureStatus

@@ -55,7 +55,7 @@ if __name__ == "__main__":
     rawopts = ArgumentParser(description="Model Register", formatter_class=ArgumentDefaultsHelpFormatter,
                              epilog="Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>")
 
-    rawopts.add_argument("--name", "-n", action='append', type=str, default=DefaultList(['worker']),
+    rawopts.add_argument("--name", "-n", dest='workers', action='append', type=str, default=DefaultList(['worker']),
                          help="available workers names. -n worker1 [-n worker2]")
     rawopts.add_argument("--admin_user", "-aus", type=str, default=None, help="Admin username")
     rawopts.add_argument("--admin_pass", "-apw", type=str, default=None, help="Admin password")

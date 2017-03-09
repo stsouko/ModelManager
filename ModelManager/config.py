@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
@@ -20,7 +19,6 @@
 #  MA 02110-1301, USA.
 #
 from os.path import join, exists, expanduser, dirname
-from MWUI.config import AdditiveType, ModelType, ResultType, StructureType, StructureStatus
 
 
 SERVER_ROOT = 'https://cimm.kpfu.ru'

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
@@ -21,7 +20,8 @@
 #
 import json
 from requests import post, get
-from .config import CHEMAXON, ADDITIVES, PREDICTOR, AdditiveType
+from .config import CHEMAXON, ADDITIVES, PREDICTOR
+from .constants import AdditiveType
 
 
 def chemax_post(url, data):
@@ -71,4 +71,3 @@ def server_post(data, user, password):
                 continue
     else:
         return []
-

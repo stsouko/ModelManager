@@ -31,7 +31,7 @@ from MODtools.config import MOLCONVERT
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
 from CGRtools.files import ReactionContainer, MoleculeContainer
-from ..config import ModelType, ResultType
+from ..constants import ModelType, ResultType
 from ..utils import chemax_post
 
 
