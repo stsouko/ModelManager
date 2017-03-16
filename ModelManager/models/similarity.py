@@ -21,11 +21,11 @@
 import subprocess as sp
 from os import path
 from io import StringIO
-from ..constants import ModelType, ResultType
+from MWUI.constants import ModelType, ResultType
+from CIMtools.config import MOLCONVERT
+from CIMtools.descriptors.fragmentor import Fragmentor
+from CIMtools.parsers import MBparser
 from ..utils import chemax_post
-from MODtools.config import MOLCONVERT
-from MODtools.descriptors.fragmentor import Fragmentor
-from MODtools.parsers import MBparser
 
 
 model_name = 'Reaction Similarity'

@@ -1,0 +1,5 @@
+requests
+dill
+pandas
+git+https://github.com/stsouko/MODtools.git@2.6#egg=CIMtools
+git+https://github.com/stsouko/predictor.git@magic#egg=MWUI

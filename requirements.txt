@@ -1,5 +1,0 @@
-requests
-dill
-pandas
-git+https://github.com/stsouko/MODtools.git@master#egg=MODtools
-git+https://github.com/stsouko/predictor.git#egg=MWUI

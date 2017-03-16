@@ -1,7 +1,35 @@
-# MWUI (Models Web User Interface)
+ModelManager
+============
+manage and run models in queue
+
+
+usage
+=====
+./rq_starter {worker_name}
+
+
+INSTALL
+=====
+
+*step 1:*
+
+    pip install -U -r requirenments.txt --process-dependency-links --allow-all-external
+
+*step 2:*
+
+read CIMtools installation guide.
+
+*step 3:*
+
+add MWUI
+
+edit `~/.CIMtools.ini` or add `/etc/.CIMtools.ini`
+or add file into package `CIMtools/.CIMtools.ini` [useful for unpacked MODtools Lib]
+
+priority: `CIMtools/.CIMtools.ini` >> `~/.CIMtools.ini` >> `/etc/.CIMtools.ini`
+
 ## Intro
-**MWUI** server manage access to models which can be stored on several
-machines.
+**MWUI** server manage access to models which can be stored on several machines.
 
 ## Modeler server
 Machine with [redis](http://redis.io) server available from network.

@@ -31,11 +31,11 @@ from collections import defaultdict
 from math import ceil
 from functools import reduce
 from io import StringIO
-from MODtools.config import MOLCONVERT
-from MODtools.consensus import ConsensusDragos
+from CIMtools.config import MOLCONVERT
+from CIMtools.consensus import ConsensusDragos
 from CGRtools.files.SDFrw import SDFread
 from CGRtools.files.RDFrw import RDFread
-from ..constants import ModelType, ResultType
+from MWUI.constants import ModelType, ResultType
 from ..utils import chemax_post
 
 

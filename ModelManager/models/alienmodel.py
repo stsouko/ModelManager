@@ -27,11 +27,11 @@ from dill import load, dump
 from subprocess import call, Popen, PIPE, STDOUT
 from io import StringIO
 from itertools import count
-from MODtools.config import MOLCONVERT
+from CIMtools.config import MOLCONVERT
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
 from CGRtools.files import ReactionContainer, MoleculeContainer
-from ..constants import ModelType, ResultType
+from MWUI.constants import ModelType, ResultType
 from ..utils import chemax_post
 
 

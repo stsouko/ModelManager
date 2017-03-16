@@ -20,8 +20,8 @@
 #
 import json
 from requests import post, get
+from MWUI.constants import AdditiveType
 from .config import CHEMAXON, ADDITIVES, PREDICTOR
-from .constants import AdditiveType
 
 
 def chemax_post(url, data):
