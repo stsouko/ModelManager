@@ -32,10 +32,10 @@ from math import ceil
 from functools import reduce
 from io import StringIO
 from CIMtools.config import MOLCONVERT
-from CIMtools.consensus import ConsensusDragos
 from CGRtools.files.SDFrw import SDFread
 from CGRtools.files.RDFrw import RDFread
 from MWUI.constants import ModelType, ResultType
+from ..consensus import ConsensusDragos
 from ..utils import chemax_post
 
 
