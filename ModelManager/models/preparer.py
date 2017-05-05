@@ -18,17 +18,13 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import json
-import re
-import requests
-import subprocess as sp
-from io import StringIO
-from os import path
 from CGRtools.CGRpreparer import CGRcombo
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files import ReactionContainer, MoleculeContainer
-from CIMtools.config import MOLCONVERT
+from json import loads
+from io import StringIO
 from MWUI.constants import ModelType, ResultType, StructureType, StructureStatus
+from os import path
 from ..utils import get_additives, chemax_post
 
 
@@ -86,14 +82,9 @@ class Model(CGRcombo):
     def get_results(self, structures):
         results = []
         for s in structures:
-            if isinstance(s['data'], dict):  # AD-HOC for files processing
-                if 'url' in s['data']:
-                    results = self.__parsefile(s['data']['url'])
-                break
-            else:
-                parsed = self.__parse_structure(s)
-                if parsed:
-                    results.append(parsed)
+            parsed = self.__parse_structure(s)
+            if parsed:
+                results.append(parsed)
         return results
 
     def __parse_structure(self, structure):
@@ -103,63 +94,8 @@ class Model(CGRcombo):
             return False
 
         with StringIO(chemaxed['structure']) as in_file, StringIO() as out_file:
-            try:
-                result = self.__prepare(in_file, out_file)[0]
-            except IndexError:
-                return False
-            prepared = out_file.getvalue()
-
-        chemaxed = chemax_post('calculate/molExport',
-                               dict(structure=prepared, parameters="mrv", filterChain=self.__post_filter_chain))
-        if not chemaxed:
-            return False
-
-        return dict(data=chemaxed['structure'].split('\n')[1] + '\n', status=result['status'], type=result['type'],
-                    results=result['results'])
-
-    def __parsefile(self, url):
-        r = requests.get(url)
-        if r.status_code != 200:
-            return False
-
-        # ANY to MDL converter
-        with sp.Popen([MOLCONVERT, 'rdf'], stdin=sp.PIPE, stdout=sp.PIPE,
-                      stderr=sp.STDOUT, cwd=self.__workpath) as convert_mol:
-            res = convert_mol.communicate(input=r.content)[0].decode()
-            if convert_mol.returncode != 0:
-                return False
-
-        # MAGIC
-        with StringIO(res) as mol_in, StringIO() as mol_out:
-            report = self.__prepare(mol_in, mol_out, first_only=False)
-            res = mol_out.getvalue()
-
-        # MDL to MRV
-        with sp.Popen([MOLCONVERT, 'mrv'], stdin=sp.PIPE, stdout=sp.PIPE,
-                      stderr=sp.STDOUT, cwd=self.__workpath) as convert_mrv:
-            res = convert_mrv.communicate(input=res.encode())[0].decode()
-            if convert_mrv.returncode != 0:
-                return False
-
-        results = []
-        with StringIO(res) as mrv:
-            next(mrv)
-            for n, (structure, tmp) in enumerate(zip(mrv, report), start=1):
-                out = dict(structure=n, data=structure)
-                out.update(tmp)
-                results.append(out)
-
-        if len(results) != len(report):
-            return False
-
-        return results
-
-    def __prepare(self, in_file, out_file, first_only=True):
-        report = []
-        rdf = RDFwrite(out_file)
-        for r in RDFread(in_file):
-            _meta = r.meta.copy()
-            r.meta.clear()
+            rdf = RDFwrite(out_file)
+            r = next(RDFread(in_file))
             if isinstance(r, ReactionContainer) and r.products and r.substrats:  # ONLY FULL REACTIONS
                 # todo: preparation for queries!!!
                 g = self.getCGR(r)
@@ -173,93 +109,24 @@ class Model(CGRcombo):
                 _status = StructureStatus.CLEAR
                 rdf.write(r)  # todo: molecules checks.
             else:
-                continue
+                return False
 
-            """
-                $DTYPE additive.amount.1
-                $DATUM name = .5
-                $DTYPE temperature
-                $DATUM 40
-                $DTYPE pressure
-                $DATUM 0.9
-                $DTYPE additive.2
-                $DATUM name
-                $DTYPE amount.2
-                $DATUM 0.5
-            """
+            prepared = out_file.getvalue()
 
-            tmp_add = {}
-            for k, v in _meta.items():
-                if k.startswith('additive.amount.'):
-                    key = k[16:]
-                    try:
-                        a_name, *_, a_amount = re.split('[:=]+', v)
-                        additive = self.__additives.get(a_name.strip().lower())
-                        if additive and key:
-                            if '%' in a_amount:
-                                _v = a_amount.replace('%', '')
-                                grader = 100
-                            else:
-                                _v = a_amount
-                                grader = 1
-                            tmp = dict(amount=float(_v) / grader)
-                            tmp.update(additive)
-                            tmp_add[key] = tmp
-                    except:
-                        pass
-                elif k.startswith('additive.'):
-                    key = k[9:]
-                    additive = self.__additives.get(v.lower())
-                    if additive and key:
-                        tmp_add.setdefault(key, dict(amount=1)).update(additive)
+        chemaxed = chemax_post('calculate/molExport',
+                               dict(structure=prepared, parameters="mrv", filterChain=self.__post_filter_chain))
+        if not chemaxed:
+            return False
 
-                elif k.startswith('amount.'):
-                    key = k[7:]
-                    if key:
-                        try:
-                            if '%' in v:
-                                _v = v.replace('%', '')
-                                grader = 100
-                            else:
-                                _v = v
-                                grader = 1
-
-                            amount = float(_v) / grader
-                            tmp_add.setdefault(key, {})['amount'] = amount
-                        except:
-                            pass
-
-            additives = []
-            for i in sorted(tmp_add):
-                if 'name' in tmp_add[i]:
-                    additives.append(tmp_add[i])
-
-            tmp = _meta.pop('pressure', 1)
-            try:
-                pressure = float(tmp)
-            except ValueError:
-                pressure = 1
-
-            tmp = _meta.pop('temperature', 298)
-            try:
-                temperature = float(tmp)
-            except ValueError:
-                temperature = 298
-
-            report.append(dict(results=[dict(key='Processed', value=x, type=ResultType.TEXT) for x in _report],
-                               status=_status, type=_type,
-                               additives=additives, pressure=pressure, temperature=temperature))
-            if first_only:
-                break
-
-        return report
+        return dict(data=chemaxed['structure'].split('\n')[1] + '\n', status=_status, type=_type,
+                    results=[dict(key='Processed', value=x, type=ResultType.TEXT) for x in _report])
 
     def chkreaction(self, structure):
         data = {"structure": structure, "parameters": "smiles:u",
                 "filterChain": [{"filter": "standardizer", "parameters": {"standardizerDefinition": "unmap"}}]}
         smiles = chemax_post('calculate/molExport', data)
         if smiles:
-            s, p = json.loads(smiles)['structure'].split('>>')
+            s, p = loads(smiles)['structure'].split('>>')
             ss = set(s.split('.'))
             ps = set(p.split('.'))
             if ss == ps:
@@ -271,14 +138,14 @@ class Model(CGRcombo):
             pt = chemax_post('calculate/chemicalTerms', {"structure": p, "parameters": "majorTautomer()"})
             if st and pt:
                 st = chemax_post('calculate/molExport',
-                                 {"structure": json.loads(st)['result']['structureData']['structure'],
+                                 {"structure": loads(st)['result']['structureData']['structure'],
                                   "parameters": "smiles:u"})
                 pt = chemax_post('calculate/molExport',
-                                 {"structure": json.loads(pt)['result']['structureData']['structure'],
+                                 {"structure": loads(pt)['result']['structureData']['structure'],
                                   "parameters": "smiles:u"})
                 if st and pt:
-                    sts = set(json.loads(st)['structure'].split('.'))
-                    pts = set(json.loads(pt)['structure'].split('.'))
+                    sts = set(loads(st)['structure'].split('.'))
+                    pts = set(loads(pt)['structure'].split('.'))
                     if sts == pts:
                         return self.__warnings['tfe']
                     if ss.intersection(ps):

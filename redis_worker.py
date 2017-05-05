@@ -19,42 +19,37 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from ModelManager import ModelSet
+from ModelManager.config import WORKPATH
+from ModelManager.utils import convert_upload
 from shutil import rmtree
 from tempfile import mkdtemp
-from ModelManager import ModelSet
-
-
-def cycle2(structures):
-    while True:
-        yield structures[0].copy()
 
 
 def run(structures=None, model=None):
-    workpath = mkdtemp(dir='/tmp')
+    workpath = mkdtemp(dir=WORKPATH)
     mod = ModelSet().load_model(model['name'], workpath=workpath)
 
     results = mod.get_results(structures) if mod is not None else None
 
     if results:
         out = []
-        # AD-HOC for preparing model for uploaded files processing.
-        tmp = cycle2(structures) if isinstance(structures[0]['data'], dict) else structures
-
-        for s, r in zip(tmp, results):
-            _res = dict(results=r.pop('results', []))
-            _res.update(model)
-            r['models'] = [_res]
-            s.update(r)
+        for s, r in zip(structures, results):
+            s['models'] = [dict(results=r.pop('results', []), **model)]
+            s.update(r)  # for preparer model only.
             out.append(s)
         structures = out
     else:
-        # AD-HOC for preparing model for uploaded files processing.
-        if isinstance(structures[0]['data'], dict):
-            raise Exception('Preparer model failed on file processing')
-
         # if failed return model without results
         for s in structures:
             s['models'] = [model]
 
     rmtree(workpath)
     return structures
+
+
+def convert(structures=None, model=None):
+    tmp = convert_upload(structures)
+    if not tmp:
+        raise Exception('File converter failed')
+    return run(structures=tmp, model=model)

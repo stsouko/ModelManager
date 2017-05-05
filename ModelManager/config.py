@@ -19,6 +19,8 @@
 #  MA 02110-1301, USA.
 #
 from os.path import join, exists, expanduser, dirname
+from sys import stderr
+from traceback import format_exc
 
 
 SERVER_ROOT = 'https://cimm.kpfu.ru'
@@ -32,7 +34,9 @@ REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 REDIS_PASSWORD = None
 
-config_list = ('CHEMAXON', 'ADDITIVES', 'PREDICTOR', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD')
+WORKPATH = '/tmp'
+
+config_list = ('CHEMAXON', 'ADDITIVES', 'PREDICTOR', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD', 'WORKPATH')
 
 config_dirs = [join(x, '.ModelManager.ini') for x in (expanduser('~'), '/etc', dirname(__file__))]
 
@@ -41,12 +45,12 @@ if not any(exists(x) for x in config_dirs):
         f.write('\n'.join('%s = %s' % (x, y or '') for x, y in globals().items() if x in config_list))
 
 with open(next(x for x in config_dirs if exists(x))) as f:
-    for line in f:
+    for n, line in enumerate(f, start=1):
         try:
             k, v = line.split('=')
             k = k.strip()
             v = v.strip()
             if k in config_list:
                 globals()[k] = int(v) if v.isdigit() else v == 'True' if v in ('True', 'False', '') else v
-        except:
-            pass
+        except ValueError:
+            print('line %d\n\n%s\n consist errors: %s' % (n, line, format_exc()), file=stderr)
