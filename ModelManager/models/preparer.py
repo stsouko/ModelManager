@@ -80,12 +80,7 @@ class Model(CGRcombo):
         self.__workpath = workpath
 
     def get_results(self, structures):
-        results = []
-        for s in structures:
-            parsed = self.__parse_structure(s)
-            if parsed:
-                results.append(parsed)
-        return results
+        return [self.__parse_structure(s) for s in structures]
 
     def __parse_structure(self, structure):
         chemaxed = chemax_post('calculate/molExport',
@@ -118,7 +113,7 @@ class Model(CGRcombo):
         if not chemaxed:
             return False
 
-        return dict(data=chemaxed['structure'].split('\n')[1] + '\n', status=_status, type=_type,
+        return dict(data=chemaxed['structure'].split('\n')[1], status=_status, type=_type,
                     results=[dict(key='Processed', value=x, type=ResultType.TEXT) for x in _report])
 
     def chkreaction(self, structure):

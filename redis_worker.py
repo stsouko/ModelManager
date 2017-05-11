@@ -27,20 +27,35 @@ from tempfile import mkdtemp
 
 
 def run(structures=None, model=None):
+    """
+    model runner
+    :param structures: list of dicts {data: chemical structure (smiles mrv etc), pressure: float, temperature: float,
+                                      additives: [{name: str, amount: float, type: AdditiveType(Enum)}]} 
+    :param model: dict(name=str, description: str, type: ModelType(Enum), model=int)
+    :return: updated list of structure dicts. new key - models: [dict(result: [dict,], **model arg)]
+    
+    if model not found or crashed return data without results in models[0]
+    if model return False for some structures in list of structures then structures skipped from output.
+    if model return list of results with with size not equal to structures list size - raise exception. this model BAD! 
+    """
     workpath = mkdtemp(dir=WORKPATH)
     mod = ModelSet().load_model(model['name'], workpath=workpath)
 
     results = mod.get_results(structures) if mod is not None else None
 
     if results:
+        if len(results) != len(structures):
+            raise Exception('Model lost structures. check model code for correctness')
+
         out = []
         for s, r in zip(structures, results):
-            s['models'] = [dict(results=r.pop('results', []), **model)]
-            s.update(r)  # for preparer model only.
-            out.append(s)
+            if r:
+                s['models'] = [dict(results=r.pop('results', []), **model)]
+                s.update(r)  # for preparer model only.
+                out.append(s)
         structures = out
     else:
-        # if failed return model without results
+        print('Model not found or not working')
         for s in structures:
             s['models'] = [model]
 
