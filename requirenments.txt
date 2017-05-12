@@ -1,5 +1,8 @@
 requests
 dill
 pandas
-git+https://github.com/stsouko/MODtools.git@2.6#egg=CIMtools
-git+https://github.com/stsouko/predictor.git@magic#egg=MWUI
+redis
+rq
+git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools
+git+https://github.com/stsouko/MWUI.git@magic#egg=MWUI
+git+https://github.com/stsouko/CGRdb.git@master#egg=CGRdb

@@ -1,6 +1,7 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -18,7 +19,17 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from ModelManager.config import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+from ModelManager.config import CGR_DB, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+from importlib.util import find_spec
+from redis import Redis
+from rq import Connection, Worker
+from sys import argv
 
-if REDIS_PASSWORD is None:
-    del REDIS_PASSWORD
+if CGR_DB and find_spec('CGRdb'):
+    """ preload DB for speedup.
+    """
+    from CGRdb import Loader
+    Loader.load_schemas()
+
+with Connection(Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)):
+    Worker(argv[1:2] or ['default']).work()

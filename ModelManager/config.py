@@ -24,7 +24,6 @@ from traceback import format_exc
 
 
 SERVER_ROOT = 'https://cimm.kpfu.ru'
-
 ADDITIVES = "%s/api/resources/additives" % SERVER_ROOT
 CHEMAXON = "%s/webservices" % SERVER_ROOT
 PREDICTOR = "%s/api/admin/models" % SERVER_ROOT
@@ -34,9 +33,10 @@ REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 REDIS_PASSWORD = None
 
+CGR_DB = False
 WORKPATH = '/tmp'
 
-config_list = ('CHEMAXON', 'ADDITIVES', 'PREDICTOR', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD', 'WORKPATH')
+config_list = ('CHEMAXON', 'ADDITIVES', 'PREDICTOR', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD', 'WORKPATH', 'CGR_DB')
 
 config_dirs = [join(x, '.ModelManager.ini') for x in (expanduser('~'), '/etc', dirname(__file__))]
 
