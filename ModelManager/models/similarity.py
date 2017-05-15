@@ -18,13 +18,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-import subprocess as sp
-from os import path
+from CGRdb import Loader
+from CGRtools.files.RDFrw import RDFread
 from io import StringIO
 from MWUI.constants import ModelType, ResultType
-from CIMtools.config import MOLCONVERT
-from CIMtools.descriptors.fragmentor import Fragmentor
-from CIMtools.parsers import MBparser
+from os.path import basename, dirname, join
 from ..utils import chemax_post
 
 
@@ -33,12 +31,8 @@ model_name = 'Reaction Similarity'
 
 class Model(object):
     def __init__(self):
-        parser = MBparser()
-        config_path = path.join(path.dirname(__file__), 'similarity')
-        frag_cfg = path.join(config_path, 'frag.cfg')
-
-        self.__fragmentor = Fragmentor(is_reaction=True, **parser.parsefragmentoropts(frag_cfg)[0])
-        self.__workpath = '.'
+        with open(join(dirname(__file__), basename(__file__), 'db.cfg')) as f:
+            self.__db_list = f.read().split()
 
     @staticmethod
     def get_example():
@@ -54,30 +48,22 @@ class Model(object):
 
     @staticmethod
     def get_type():
-        return ModelType.REACTION_SIMILARITY
+        return ModelType.REACTION_SEARCHING
 
-    def setworkpath(self, workpath):
-        self.__workpath = workpath
-        self.__fragmentor.setworkpath(workpath)
+    def set_work_path(self, _):
+        pass
 
     def get_results(self, structures):
-        # prepare input file
-        if len(structures) == 1:
-            chemaxed = chemaxpost('calculate/molExport',
-                                  dict(structure=structures[0]['data'], parameters='rdf'))
-            if not chemaxed:
-                return False
+        if len(structures) != 1:
+            return False
 
-            data = chemaxed['structure']
-        else:
-            with sp.Popen([MOLCONVERT, 'rdf'],
-                          stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT, cwd=self.__workpath) as convert_mol:
-                data = convert_mol.communicate(input=''.join(s['data'] for s in structures).encode())[0].decode()
-                if convert_mol.returncode != 0:
-                    return False
+        chemaxed = chemax_post('calculate/molExport',
+                               dict(structure=structures[0]['data'], parameters='rdf'))
+        if not chemaxed:
+            return False
 
-        with StringIO(data) as f:
-            descriptors = self.__fragmentor.get(f)['X']
+        with StringIO(chemaxed['structure']) as f:
+            data = RDFread(f).read()
 
 
 class ModelLoader(object):
