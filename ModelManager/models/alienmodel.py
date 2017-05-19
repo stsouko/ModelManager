@@ -38,6 +38,9 @@ from ..utils import chemax_post
 class Model(object):
     def __init__(self, directory):
         self.__conf = self.__load_model(directory)
+        self.__type = ModelType(self.__conf.get('type'))
+        if self.__type not in (ModelType.MOLECULE_MODELING, ModelType.REACTION_MODELING):
+            raise Exception('Alien models must be only MODELING type')
         self.__starter = [join(directory, self.__conf['start'])]
         self.__workpath = '.'
 
@@ -57,7 +60,7 @@ class Model(object):
         return self.__conf.get('name')
 
     def get_type(self):
-        return ModelType(self.__conf.get('type'))
+        return self.__type
 
     def set_work_path(self, workpath):
         self.__workpath = workpath
@@ -80,8 +83,7 @@ class Model(object):
 
         counter = count()
         with StringIO(data) as in_file, open(structure_file, 'w') as out_file:
-            rdf = RDFwrite(out_file)
-            sdf = SDFwrite(out_file)
+            out = RDFwrite(out_file) if self.__type == ModelType.REACTION_MODELING else SDFwrite(out_file)
             for r, meta in zip(RDFread(in_file), structures):
                 next(counter)
                 r.meta.update(pressure=meta['pressure'], temperature=meta['temperature'])
@@ -89,31 +91,36 @@ class Model(object):
                     r.meta['additive.%d' % n] = a['name']
                     r.meta['amount.%d' % n] = '%f' % a['amount']
 
-                if self.get_type() == ModelType.REACTION_MODELING and isinstance(r, ReactionContainer):
-                    rdf.write(r)
-                elif self.get_type() == ModelType.MOLECULE_MODELING and isinstance(r, MoleculeContainer):
-                    sdf.write(r)
+                if self.__type == ModelType.REACTION_MODELING and isinstance(r, ReactionContainer):
+                    out.write(r)
+                elif self.__type == ModelType.MOLECULE_MODELING and isinstance(r, MoleculeContainer):
+                    out.write(r)
 
         if len(structures) != next(counter):
             return False
 
-        if call(self.__starter, cwd=self.__workpath) == 0:
-            results = []
-            with open(results_file) as f:
-                header = [dict(key=k, type=ResultType[t]) for t, k in
-                          (x.split(':') for x in next(f).rstrip().split(','))]
-                for l in f:
-                    rep = []
-                    for h, v in zip(header, l.rstrip().split(',')):
-                        if v:
-                            tmp = dict(value=v)
-                            tmp.update(h)
-                            rep.append(tmp)
-                    results.append(dict(results=rep))
-            if len(structures) == len(results):
-                return results
+        if call(self.__starter, cwd=self.__workpath) != 0:
+            return False
 
-        return False
+        results = []
+        with open(results_file) as f:
+            header = [dict(key=k, type=ResultType[t]) for t, k in
+                      (x.split(':') for x in next(f).rstrip().split(','))]
+            for l in f:
+                rep = []
+                for h, v in zip(header, l.rstrip().split(',')):
+                    if v:
+                        tmp = dict(value=v)
+                        tmp.update(h)
+                        rep.append(tmp)
+                results.append(dict(results=rep))
+
+        if len(structures) != len(results):
+            return False
+
+        for s, r in zip(structures, results):
+            r.update(s)
+        return results
 
 
 class ModelLoader(object):

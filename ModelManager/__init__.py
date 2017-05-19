@@ -21,7 +21,7 @@
 from sys import stderr
 from traceback import format_exc
 from os import listdir
-from os.path import dirname, join
+from os.path import dirname, join, splitext, isfile
 
 
 class ModelSet(object):
@@ -29,20 +29,20 @@ class ModelSet(object):
         self.__models = self.__scan_models()
 
     @staticmethod
-    def __loader(module):
-        return getattr(__import__('%s.models.%s' % (__name__, module), globals(), locals()).models,
-                       module).ModelLoader()
+    def __loader(mod):
+        return getattr(__import__('%s.models.%s' % (__name__, mod), globals(), locals()).models, mod).ModelLoader()
 
     def __scan_models(self):
         models = {}
-        for module in listdir(join(dirname(__file__), 'models')):
-            if module.endswith('.py') and module != '__init__.py':
+        for mod in listdir(join(dirname(__file__), 'models')):
+            if isfile(mod) and mod.lower().endswith(('.py', '.pyo', '.pyc')) and mod != '__init__.py':
+                modname = splitext(mod)[0]
                 try:
-                    model_loader = self.__loader(module[:-3])
+                    model_loader = self.__loader(modname)
                     for x in model_loader.get_models():
-                        models[x['name']] = (module[:-3], x)
+                        models[x['name']] = (modname, x)
                 except Exception:
-                    print('module %s consist errors: %s' % (module, format_exc()), file=stderr)
+                    print('module %s consist errors: %s' % (mod, format_exc()), file=stderr)
         return models
 
     def load_model(self, name, workpath='.'):

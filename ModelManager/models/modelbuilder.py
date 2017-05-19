@@ -78,7 +78,7 @@ class Model(ConsensusDragos):
 
     @staticmethod
     def __report_atoms(atoms):
-        return atoms and ' [Modeled site atoms: %s]' % ', '.join(atoms) or ''
+        return atoms and ' [Modeled site atoms: %s]' % ', '.join(str(x) for x in atoms) or ''
 
     def get_results(self, structures):
         # prepare input file
@@ -166,13 +166,10 @@ class Model(ConsensusDragos):
                                       type=ResultType.TEXT),
                                  dict(key='Distrust reason%s' % atoms, value=report.loc[r], type=ResultType.TEXT)])
 
-        if len(structures) == len(collector):
-            out = []
-            for s in sorted(collector):
-                out.append(dict(results=collector[s]))
-            return out
+        if len(structures) != len(collector):
+            return False
 
-        return False
+        return [dict(results=collector[s], **structures[s]) for s in sorted(collector)]
 
 
 class ModelLoader(object):

@@ -113,8 +113,9 @@ class Model(CGRcombo):
         if not chemaxed:
             return False
 
-        return dict(data=chemaxed['structure'].split('\n')[1], status=_status, type=_type,
-                    results=[dict(key='Processed', value=x, type=ResultType.TEXT) for x in _report])
+        structure.update(data=chemaxed['structure'].split('\n')[1], status=_status, type=_type,
+                         results=[dict(key='Processed', value=x, type=ResultType.TEXT) for x in _report])
+        return structure
 
     def chkreaction(self, structure):
         data = {"structure": structure, "parameters": "smiles:u",

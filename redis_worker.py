@@ -22,6 +22,7 @@
 from ModelManager import ModelSet
 from ModelManager.config import WORKPATH
 from ModelManager.utils import convert_upload
+from MWUI.constants import ModelType
 from shutil import rmtree
 from tempfile import mkdtemp
 
@@ -40,27 +41,29 @@ def run(structures=None, model=None):
     """
     workpath = mkdtemp(dir=WORKPATH)
     mod = ModelSet().load_model(model['name'], workpath=workpath)
+    s_len = len(structures)
 
-    results = mod.get_results(structures) if mod is not None else None
+    results = mod.get_results([x.copy() for x in structures]) if mod is not None else None
 
     if results:
-        if len(results) != len(structures):
+        if len(results) != s_len and mod.get_type() not in (ModelType.MOLECULE_SEARCHING, ModelType.REACTION_SEARCHING):
             raise Exception('Model lost structures. check model code for correctness')
 
-        out = []
-        for s, r in zip(structures, results):
-            if r:
-                s['models'] = [dict(results=r.pop('results', []), **model)]
-                s.update(r)  # for preparer model only.
-                out.append(s)
-        structures = out
+        if mod.get_type() in (ModelType.REACTION_MODELING, ModelType.MOLECULE_MODELING):
+            if any(s[x] != r[x] for s, r in zip(structures, results)
+                   for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives')):
+                raise Exception("Editing structure, properties and meta denied! ONLY results assign possible!")
+
+        for r in results:  # reformat structure container.
+            r['models'] = [dict(results=r.pop('results', []), **model)]
     else:
         print('Model not found or not working')
         for s in structures:
             s['models'] = [model]
+        results = structures
 
     rmtree(workpath)
-    return structures
+    return results
 
 
 def convert(structures=None, model=None):
