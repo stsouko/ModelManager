@@ -22,47 +22,66 @@
 from ModelManager import ModelSet
 from ModelManager.config import WORKPATH
 from ModelManager.utils import convert_upload
-from MWUI.constants import ModelType
+from MWUI.constants import ModelType, ResultType
 from shutil import rmtree
+from sys import stderr
 from tempfile import mkdtemp
+from traceback import format_exc
 
 
 def run(structures=None, model=None):
     """
     model runner
-    :param structures: list of dicts {data: chemical structure (smiles mrv etc), pressure: float, temperature: float,
-                                      additives: [{name: str, amount: float, type: AdditiveType(Enum)}]} 
+    :param structures: list of {data: chemical structure (smiles mrv etc), pressure: float, temperature: float,
+                                additives: [{name: str, amount: float, type: AdditiveType(Enum)}], structure: int,
+                                status: MWUI.constants[StructureStatus], type: MWUI.constants[StructureType]} 
     :param model: dict(name=str, description: str, type: ModelType(Enum), model=int)
     :return: updated list of structure dicts. new key - models: [dict(result: [dict,], **model arg)]
     
     if model not found or crashed return data without results in models[0]
-    if model return False for some structures in list of structures then structures skipped from output.
-    if model return list of results with with size not equal to structures list size - raise exception. this model BAD! 
+    if model return list of results with size not equal to structures list size - raise exception. this model BAD! 
     """
+    def fail_prep(reason):
+        for s in structures:
+            s['results'] = [dict(key='Modeling Failed', value=reason, type=ResultType.TEXT)]
+        return structures
+
     workpath = mkdtemp(dir=WORKPATH)
     mod = ModelSet().load_model(model['name'], workpath=workpath)
-    s_len = len(structures)
 
-    results = mod.get_results([x.copy() for x in structures]) if mod is not None else None
+    if mod is None:
+        print('Model not found or not loadable')
+        rmtree(workpath)
+        return fail_prep('Model not found or not loadable')
 
-    if results:
-        if len(results) != s_len and mod.get_type() not in (ModelType.MOLECULE_SEARCHING, ModelType.REACTION_SEARCHING):
-            raise Exception('Model lost structures. check model code for correctness')
-
-        if mod.get_type() in (ModelType.REACTION_MODELING, ModelType.MOLECULE_MODELING):
-            if any(s[x] != r[x] for s, r in zip(structures, results)
-                   for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives')):
-                raise Exception("Editing structure, properties and meta denied! ONLY results assign possible!")
-
-        for r in results:  # reformat structure container.
-            r['models'] = [dict(results=r.pop('results', []), **model)]
-    else:
-        print('Model not found or not working')
-        for s in structures:
-            s['models'] = [model]
-        results = structures
+    try:
+        results = mod.get_results([x.copy() for x in structures])
+    except Exception:
+        print('Model not working:\n %s' % format_exc(), file=stderr)
+        rmtree(workpath)
+        return fail_prep('Model not working')
 
     rmtree(workpath)
+    if not results:
+        return fail_prep('Model return nothing')
+
+    if len(results) != len(structures) and mod.get_type() not in (ModelType.MOLECULE_SEARCHING,
+                                                                  ModelType.REACTION_SEARCHING):
+        print('Model lost structures. check model code for correctness')
+        return fail_prep('Model not working')
+
+    if mod.get_type() in (ModelType.REACTION_MODELING, ModelType.MOLECULE_MODELING):
+        if any(s[x] != r[x] for s, r in zip(structures, results)
+               for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives')):
+            print("Editing structure, properties and meta denied! ONLY results assign possible!")
+            return fail_prep('Model not working')
+
+    if mod.get_type() == ModelType.PREPARER:
+        if any(s[x] != r[x] for s, r in zip(structures, results) for x in ('structure', 'additives')):
+            print("Editing meta denied! "
+                  "ONLY results assigning, data, temperature, pressure type nd status editing possible!")
+            return fail_prep('Model not working')
+
     return results
 
 

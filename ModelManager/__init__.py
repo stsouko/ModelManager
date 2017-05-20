@@ -18,15 +18,17 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from sys import stderr
-from traceback import format_exc
 from os import listdir
 from os.path import dirname, join, splitext, isfile
+from sys import stderr
+from traceback import format_exc
 
 
 class ModelSet(object):
     def __init__(self):
         self.__models = self.__scan_models()
+
+    __models_dir = join(dirname(__file__), 'models')
 
     @staticmethod
     def __loader(mod):
@@ -34,15 +36,16 @@ class ModelSet(object):
 
     def __scan_models(self):
         models = {}
-        for mod in listdir(join(dirname(__file__), 'models')):
-            if isfile(mod) and mod.lower().endswith(('.py', '.pyo', '.pyc')) and mod != '__init__.py':
+        for mod in listdir(self.__models_dir):
+            if isfile(join(self.__models_dir, mod)) and mod.lower().endswith(('.py', '.pyo', '.pyc')) \
+                    and mod != '__init__.py':
                 modname = splitext(mod)[0]
                 try:
                     model_loader = self.__loader(modname)
                     for x in model_loader.get_models():
                         models[x['name']] = (modname, x)
                 except Exception:
-                    print('module %s consist errors: %s' % (mod, format_exc()), file=stderr)
+                    print('module %s consist errors:\n %s' % (mod, format_exc()), file=stderr)
         return models
 
     def load_model(self, name, workpath='.'):
