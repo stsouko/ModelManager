@@ -41,20 +41,13 @@ def run(structures=None, model=None):
         tmp = cycle2(structures) if isinstance(structures[0]['data'], dict) else structures
 
         for s, r in zip(tmp, results):
-            _res = dict(results=r.pop('results', []))
-            _res.update(model)
-            r['models'] = [_res]
-            s.update(r)
+            s.update(**r)
             out.append(s)
         structures = out
     else:
         # AD-HOC for preparing model for uploaded files processing.
         if isinstance(structures[0]['data'], dict):
             raise Exception('Preparer model failed on file processing')
-
-        # if failed return model without results
-        for s in structures:
-            s['models'] = [model]
 
     shutil.rmtree(workpath)
     return structures
