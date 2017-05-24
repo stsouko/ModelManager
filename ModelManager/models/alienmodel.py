@@ -18,20 +18,20 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from sys import stderr
-from traceback import format_exc
-from json import load as json_load
-from os import listdir
-from os.path import join, abspath, splitext, exists, dirname
-from dill import load, dump
-from subprocess import call, Popen, PIPE, STDOUT
-from io import StringIO
-from itertools import count
-from CIMtools.config import MOLCONVERT
+from CGRtools.files import ReactionContainer, MoleculeContainer
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.files.SDFrw import SDFwrite
-from CGRtools.files import ReactionContainer, MoleculeContainer
+from CIMtools.config import MOLCONVERT
+from io import StringIO
+from itertools import count
+from json import load as json_load
 from MWUI.constants import ModelType, ResultType
+from os import listdir, mkdir, chmod
+from os.path import join, abspath, splitext, exists, isdir
+from pickle import load, dump
+from subprocess import call, Popen, PIPE, STDOUT
+from sys import stderr
+from traceback import format_exc
 from ..utils import chemax_post
 
 
@@ -125,16 +125,25 @@ class Model(object):
 
 class ModelLoader(object):
     def __init__(self, **_):
-        self.__models_path = abspath(join(dirname(__file__), 'alienmodel'))
+        self.__models_path = splitext(abspath(__file__))[0]
         self.__cache_path = join(self.__models_path, '.cache')
+
+        if not exists(self.__models_path):
+            mkdir(self.__models_path, 750)
+        elif not isdir(self.__models_path):
+            raise Exception('path to config dir occupied by file', self.__models_path)
+
         self.__models = self.__scan_models()
 
     def __scan_models(self):
-        directories = {x['directory']: x for x in
-                       load(open(self.__cache_path, 'rb'))} if exists(self.__cache_path) else {}
+        if exists(self.__cache_path):
+            with open(self.__cache_path, 'rb') as f:
+                directories = {x['directory']: x for x in load(f)}
+        else:
+            directories = {}
         cache = {}
         for directory in (join(self.__models_path, f) for f in listdir(self.__models_path)
-                          if splitext(f)[-1] == '.model'):
+                          if splitext(f)[1] == '.model' and isdir(join(self.__models_path, f))):
 
             if directory not in directories:
                 try:
@@ -146,8 +155,9 @@ class ModelLoader(object):
                     print('module %s consist errors: %s' % (directory, format_exc()), file=stderr)
             else:
                 cache[directories[directory]['name']] = directories[directory]
-
-        dump(list(cache.values()), open(self.__cache_path, 'wb'))
+        with open(self.__cache_path, 'wb') as f:
+            dump(list(cache.values()), f)
+        chmod(self.__cache_path, 0o660)
         return cache
 
     def load_model(self, name):

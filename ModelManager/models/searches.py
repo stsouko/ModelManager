@@ -22,41 +22,28 @@ from CGRdb import Loader
 from CGRtools.files.MRVrw import MRVwrite
 from CGRtools.files.RDFrw import RDFread
 from io import StringIO
-from MWUI.constants import ModelType, ResultType
+from itertools import count
+from MWUI.constants import ModelType, ResultType, StructureType, StructureStatus
+from pony.orm import db_session
 from os import mkdir
 from os.path import basename, dirname, join, exists, splitext, isdir
 from ..utils import chemax_post
 
 
-config_dir = join(dirname(__file__), splitext(basename(__file__))[0])
-config_file = join(config_dir, 'config.ini')
-
-if not exists(config_dir):
-    mkdir(config_dir, 750)
-elif not isdir(config_dir):
-    raise Exception('path to config dir occupied by file', config_dir)
-
-if not exists(config_file):
-    raise Exception('not configured', config_file)
-
-
 class Model(object):
-    def __init__(self, name):
+    def __init__(self, name, db_list):
         self.__type = self.__types[name][0]
         self.__func = self.__types[name][2]
+        self.__structure_type = self.__types[name][3]
         self.__name = name
-
-        with open(config_file) as f:
-            db_list = f.read().split()
-
         self.__dbs = {x: Loader.get_database(x)[self.__types[name][1]] for x in db_list}
 
-    __types = {'Reaction Similarity': (ModelType.REACTION_SEARCHING, 1, 'find_similar'),
-               'Molecule Similarity': (ModelType.MOLECULE_SEARCHING, 0, 'find_similar'),
-               'Reaction Substructure': (ModelType.REACTION_SEARCHING, 1, 'find_substructures'),
-               'Molecule Substructure': (ModelType.MOLECULE_SEARCHING, 0, 'find_substructures'),
-               'Reaction Structure': (ModelType.REACTION_SEARCHING, 1, 'find_structure'),
-               'Molecule Structure': (ModelType.MOLECULE_SEARCHING, 0, 'find_structure')}
+    __types = {'Reaction Similarity': (ModelType.REACTION_SEARCHING, 1, 'find_similar', StructureType.REACTION),
+               'Molecule Similarity': (ModelType.MOLECULE_SEARCHING, 0, 'find_similar', StructureType.MOLECULE),
+               'Reaction Substructure': (ModelType.REACTION_SEARCHING, 1, 'find_substructures', StructureType.REACTION),
+               'Molecule Substructure': (ModelType.MOLECULE_SEARCHING, 0, 'find_substructures', StructureType.MOLECULE),
+               'Reaction Structure': (ModelType.REACTION_SEARCHING, 1, 'find_structure', StructureType.REACTION),
+               'Molecule Structure': (ModelType.MOLECULE_SEARCHING, 0, 'find_structure', StructureType.MOLECULE)}
 
     @staticmethod
     def get_example():
@@ -89,18 +76,40 @@ class Model(object):
             return False
 
         res = []
+        counter = count(1)
         for k, entity in self.__dbs.items():
-            tmp = getattr(entity, self.__func)(data[0])
-            for x in tmp if isinstance(tmp, list) else [tmp]:
-                with StringIO() as f:
-                    mrv = MRVwrite(f)
-                    mrv.write(x.structure)
-                    mrv.finalize()
-                    dict(key='structure', value=f.getvalue(), type=ResultType.STRUCTURE)
-
+            with db_session:
+                tmp = getattr(entity, self.__func)(data[0])
+                for x in tmp if isinstance(tmp, list) else [tmp]:
+                    with StringIO() as f:
+                        mrv = MRVwrite(f)
+                        mrv.write(x.structure)
+                        mrv.finalize()
+                        res.append(dict(structure=next(counter), data=f.getvalue(), type=self.__structure_type,
+                                        status=StructureStatus.CLEAR, temperature=298, pressure=1, additives=[],
+                                        results=[dict(key='Found', value='this', type=ResultType.TEXT)]))
+        return res
 
 
 class ModelLoader(object):
+    @staticmethod
+    def get_db_list():
+        config_dir = join(dirname(__file__), splitext(basename(__file__))[0])
+        config_file = join(config_dir, 'config.ini')
+
+        if not exists(config_dir):
+            mkdir(config_dir, 750)
+        elif not isdir(config_dir):
+            raise Exception('path to config dir occupied by file', config_dir)
+
+        if not exists(config_file):
+            raise Exception('not configured', config_file)
+
+        with open(config_file) as f:
+            db_list = f.read().split()
+
+        return db_list
+
     __model_names = ('Reaction Similarity', 'Molecule Similarity',
                      'Reaction Substructure', 'Molecule Substructure',
                      'Reaction Structure', 'Molecule Structure')
@@ -108,9 +117,9 @@ class ModelLoader(object):
     @classmethod
     def load_model(cls, name):
         if name in cls.__model_names:
-            return Model(name)
+            return Model(name, cls.get_db_list())
 
     @classmethod
     def get_models(cls):
         return [dict(example=x.get_example(), description=x.get_description(),
-                     type=x.get_type(), name=x.get_name()) for x in (Model(x) for x in cls.__model_names)]
+                     type=x.get_type(), name=x.get_name()) for x in (Model(x, []) for x in cls.__model_names)]

@@ -38,7 +38,7 @@ WORKPATH = '/tmp'
 
 config_list = ('CHEMAXON', 'ADDITIVES', 'PREDICTOR', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD', 'WORKPATH', 'CGR_DB')
 
-config_dirs = [join(x, '.ModelManager.ini') for x in (expanduser('~'), '/etc', dirname(__file__))]
+config_dirs = [join(x, '.ModelManager.ini') for x in (dirname(__file__), expanduser('~'), '/etc')]
 
 if not any(exists(x) for x in config_dirs):
     with open(config_dirs[0], 'w') as f:

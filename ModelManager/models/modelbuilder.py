@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015, 2016 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -18,23 +18,23 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.files.RDFrw import RDFread
+from CGRtools.files.SDFrw import SDFread
+from CIMtools.config import MOLCONVERT
+from collections import defaultdict
+from functools import reduce
+from gzip import open as gzip_open
+from hashlib import md5
+from io import StringIO
+from math import ceil
+from MWUI.constants import ModelType, ResultType
+from os import listdir, mkdir, chmod
+from os.path import join, abspath, exists, splitext, getsize, isdir
+from pandas import Series, merge
+from pickle import load, dump
+from subprocess import Popen, PIPE, STDOUT
 from sys import stderr
 from traceback import format_exc
-from gzip import open as gzip_open
-from dill import load, dump
-from hashlib import md5
-from os import listdir
-from os.path import join, abspath, exists, splitext, dirname, getsize
-from subprocess import Popen, PIPE, STDOUT
-from pandas import Series, merge
-from collections import defaultdict
-from math import ceil
-from functools import reduce
-from io import StringIO
-from CIMtools.config import MOLCONVERT
-from CGRtools.files.SDFrw import SDFread
-from CGRtools.files.RDFrw import RDFread
-from MWUI.constants import ModelType, ResultType
 from ..consensus import ConsensusDragos
 from ..utils import chemax_post
 
@@ -175,8 +175,14 @@ class Model(ConsensusDragos):
 class ModelLoader(object):
     def __init__(self, fast_load=True):
         self.__skip_md5 = fast_load
-        self.__models_path = abspath(join(dirname(__file__), 'modelbuilder'))
+        self.__models_path = splitext(abspath(__file__))[0]
         self.__cache_path = join(self.__models_path, '.cache')
+
+        if not exists(self.__models_path):
+            mkdir(self.__models_path, 750)
+        elif not isdir(self.__models_path):
+            raise Exception('path to config dir occupied by file', self.__models_path)
+
         self.__models = self.__scan_models()
 
     @staticmethod
@@ -188,10 +194,15 @@ class ModelLoader(object):
         return hash_md5.hexdigest()
 
     def __scan_models(self):
-        files = {x['file']: x for x in load(open(self.__cache_path, 'rb'))} if exists(self.__cache_path) else {}
+        if exists(self.__cache_path):
+            with open(self.__cache_path, 'rb') as f:
+                files = {x['file']: x for x in load(f)}
+        else:
+            files = {}
+
         cache = {}
         for file in (join(self.__models_path, f) for f in listdir(self.__models_path)
-                     if splitext(f)[-1] == '.model'):
+                     if splitext(f)[1] == '.model' and not isdir(join(self.__models_path, f))):
 
             if file not in files or files[file]['size'] != getsize(file) or \
                             not self.__skip_md5 and self.__md5(file) != files[file]['hash']:
@@ -206,7 +217,9 @@ class ModelLoader(object):
             else:
                 cache[files[file]['name']] = files[file]
 
-        dump(list(cache.values()), open(self.__cache_path, 'wb'))
+        with open(self.__cache_path, 'wb') as f:
+            dump(list(cache.values()), f)
+        chmod(self.__cache_path, 0o660)
         return cache
 
     def load_model(self, name):

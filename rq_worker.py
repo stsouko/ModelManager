@@ -29,6 +29,7 @@ if CGR_DB and find_spec('CGRdb'):
     """ preload DB for speedup.
     """
     from CGRdb import Loader
+    print("CGRdb preloaded")
     Loader.load_schemas()
 
 with Connection(Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)):
