@@ -80,14 +80,15 @@ class Model(object):
         for k, entity in self.__dbs.items():
             with db_session:
                 tmp = getattr(entity, self.__func)(data[0])
-                for x in tmp if isinstance(tmp, list) else [tmp]:
+                for x, y in zip(*tmp) if isinstance(tmp, tuple) else [(tmp, None)]:
                     with StringIO() as f:
                         mrv = MRVwrite(f)
                         mrv.write(x.structure)
                         mrv.finalize()
+                        report = [dict(key='Tanimoto', value=y, type=ResultType.TEXT)] if y is not None else []
                         res.append(dict(structure=next(counter), data=f.getvalue(), type=self.__structure_type,
                                         status=StructureStatus.CLEAR, temperature=298, pressure=1, additives=[],
-                                        results=[dict(key='Found', value='this', type=ResultType.TEXT)]))
+                                        results=report))
         return res
 
 

@@ -18,12 +18,13 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from bz2 import open as bz2_open
 from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.SDFrw import SDFread
 from CIMtools.config import MOLCONVERT
+from CIMtools.estimators.svmodel import SVModel
 from collections import defaultdict
 from functools import reduce
-from gzip import open as gzip_open
 from hashlib import md5
 from io import StringIO
 from math import ceil
@@ -41,8 +42,8 @@ from ..utils import chemax_post
 
 class Model(ConsensusDragos):
     def __init__(self, file):
-        tmp = load(gzip_open(file, 'rb'))
-        self.__models = tmp['models']
+        tmp = load(bz2_open(file, 'rb'))
+        self.__models = [SVModel.unpickle(x) for x in tmp['models']]
         self.__conf = tmp['config']
         self.__workpath = '.'
 
@@ -115,10 +116,9 @@ class Model(ConsensusDragos):
         for m in self.__models:
             res.append(m.predict(data, **additions))
 
-        # all_y_domains = reduce(merge_wrap, (x['y_domain'] for x in res))
-        all_domains = reduce(self.__merge_wrap, (x['domain'] for x in res)).fillna(False)
+        all_domains = reduce(self.__merge_wrap, (x.domain for x in res)).fillna(False)
 
-        all_predictions = reduce(self.__merge_wrap, (x['prediction'] for x in res))
+        all_predictions = reduce(self.__merge_wrap, (x.prediction for x in res))
         in_predictions = all_predictions.mask(all_domains ^ True)
 
         trust = Series(5, index=all_predictions.index)
