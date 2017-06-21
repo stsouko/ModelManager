@@ -18,8 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from os import listdir
-from os.path import dirname, join, splitext, isfile
+from pathlib import Path
 from sys import stderr
 from traceback import format_exc
 
@@ -28,7 +27,7 @@ class ModelSet(object):
     def __init__(self):
         self.__models = self.__scan_models()
 
-    __models_dir = join(dirname(__file__), 'models')
+    __models_dir = Path(__file__).parent / 'models'
 
     @staticmethod
     def __loader(mod):
@@ -36,10 +35,9 @@ class ModelSet(object):
 
     def __scan_models(self):
         models = {}
-        for mod in listdir(self.__models_dir):
-            if isfile(join(self.__models_dir, mod)) and mod.lower().endswith(('.py', '.pyo', '.pyc')) \
-                    and mod != '__init__.py':
-                modname = splitext(mod)[0]
+        for mod in self.__models_dir.iterdir():
+            if mod.is_file() and mod.suffix in ('.py', '.pyo', '.pyc') and mod.name.lower() != '__init__.py':
+                modname = mod.stem
                 try:
                     model_loader = self.__loader(modname)
                     for x in model_loader.get_models():

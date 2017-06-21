@@ -20,7 +20,7 @@
 #
 from CGRtools.files.RDFrw import RDFread
 from CGRtools.files.MRVrw import MRVwrite
-from CGRtools.files import ReactionContainer
+from CGRtools.containers import ReactionContainer
 from CIMtools.config import MOLCONVERT
 from io import StringIO
 from json import dumps

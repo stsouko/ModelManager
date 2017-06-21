@@ -29,9 +29,8 @@ from hashlib import md5
 from io import StringIO
 from math import ceil
 from MWUI.constants import ModelType, ResultType
-from os import listdir, mkdir, chmod
-from os.path import join, abspath, exists, splitext, getsize, isdir
 from pandas import Series, merge
+from pathlib import Path
 from pickle import load, dump
 from subprocess import Popen, PIPE, STDOUT
 from sys import stderr
@@ -42,7 +41,7 @@ from ..utils import chemax_post
 
 class Model(ConsensusDragos):
     def __init__(self, file):
-        tmp = load(bz2_open(file, 'rb'))
+        tmp = load(bz2_open(str(file), 'rb'))
         self.__models = [SVModel.unpickle(x) for x in tmp['models']]
         self.__conf = tmp['config']
         self.__workpath = '.'
@@ -174,57 +173,62 @@ class Model(ConsensusDragos):
 
 class ModelLoader(object):
     def __init__(self, fast_load=True):
+        tmp = Path(__file__).resolve()
+        self.__models_path = tmp.parent / tmp.stem
+        self.__cache_path = self.__models_path / '.cache'
         self.__skip_md5 = fast_load
-        self.__models_path = splitext(abspath(__file__))[0]
-        self.__cache_path = join(self.__models_path, '.cache')
 
-        if not exists(self.__models_path):
-            mkdir(self.__models_path, 750)
-        elif not isdir(self.__models_path):
+        if not self.__models_path.exists():
+            self.__models_path.mkdir(mode=0o750)
+        elif not self.__models_path.is_dir():
             raise Exception('path to config dir occupied by file', self.__models_path)
+
+        if not self.__cache_path.exists():
+            self.__cache_path.touch(mode=0o660)
+        elif not self.__cache_path.is_file():
+            raise Exception('path to cache file occupied by dir', self.__cache_path)
+        elif self.__cache_path.stat().st_mode != 33200:
+            self.__cache_path.chmod(0o660)
 
         self.__models = self.__scan_models()
 
     @staticmethod
-    def __md5(name):
+    def __md5(file):
         hash_md5 = md5()
-        with open(name, "rb") as f:
+        with file.open('rb') as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
 
     def __scan_models(self):
-        if exists(self.__cache_path):
-            with open(self.__cache_path, 'rb') as f:
+        if self.__cache_path.stat().st_size:
+            with self.__cache_path.open('rb') as f:
                 files = {x['file']: x for x in load(f)}
         else:
             files = {}
 
         cache = {}
-        for file in (join(self.__models_path, f) for f in listdir(self.__models_path)
-                     if splitext(f)[1] == '.model' and not isdir(join(self.__models_path, f))):
-
-            if file not in files or files[file]['size'] != getsize(file) or \
-                            not self.__skip_md5 and self.__md5(file) != files[file]['hash']:
+        for file in (f for f in self.__models_path.iterdir() if f.is_file() and f.suffix == '.model'):
+            file_name = file.stem
+            if file_name not in files or files[file_name]['size'] != file.stat().st_size or \
+                    not self.__skip_md5 and self.__md5(file) != files[file_name]['hash']:
                 try:
                     model = Model(file)
-                    cache[model.get_name()] = dict(file=file, hash=self.__md5(file), example=model.get_example(),
-                                                   description=model.get_description(),
-                                                   size=getsize(file),
+                    cache[model.get_name()] = dict(file=file_name, hash=self.__md5(file), example=model.get_example(),
+                                                   description=model.get_description(), size=file.stat().st_size,
                                                    type=model.get_type(), name=model.get_name())
                 except Exception:
                     print('model %s consist errors: %s' % (file, format_exc()), file=stderr)
             else:
-                cache[files[file]['name']] = files[file]
+                cache[files[file_name]['name']] = files[file_name]
 
-        with open(self.__cache_path, 'wb') as f:
+        with self.__cache_path.open('wb') as f:
             dump(list(cache.values()), f)
-        chmod(self.__cache_path, 0o660)
         return cache
 
     def load_model(self, name):
         if name in self.__models:
-            return Model(self.__models[name]['file'])
+            return Model(self.__models_path / ('%s.model' % self.__models[name]['file']))
 
     def get_models(self):
         return list(self.__models.values())

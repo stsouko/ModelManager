@@ -18,9 +18,9 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.CGRpreparer import CGRcombo
+from CGRtools.preparer import CGRcombo
 from CGRtools.files.RDFrw import RDFread, RDFwrite
-from CGRtools.files import ReactionContainer, MoleculeContainer
+from CGRtools.containers import ReactionContainer, MoleculeContainer
 from json import loads
 from io import StringIO
 from MWUI.constants import ModelType, ResultType, StructureType, StructureStatus

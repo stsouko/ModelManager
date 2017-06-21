@@ -25,8 +25,7 @@ from io import StringIO
 from itertools import count
 from MWUI.constants import ModelType, ResultType, StructureType, StructureStatus
 from pony.orm import db_session
-from os import mkdir
-from os.path import basename, dirname, join, exists, splitext, isdir
+from pathlib import Path
 from ..utils import chemax_post
 
 
@@ -95,18 +94,21 @@ class Model(object):
 class ModelLoader(object):
     @staticmethod
     def get_db_list():
-        config_dir = join(dirname(__file__), splitext(basename(__file__))[0])
-        config_file = join(config_dir, 'config.ini')
+        tmp = Path(__file__).resolve()
+        config_dir = tmp.parent / tmp.stem
+        config_file = config_dir / 'config.ini'
 
-        if not exists(config_dir):
-            mkdir(config_dir, 750)
-        elif not isdir(config_dir):
+        if not config_dir.exists():
+            config_dir.mkdir(mode=0o750)
+        elif not config_dir.is_dir():
             raise Exception('path to config dir occupied by file', config_dir)
 
-        if not exists(config_file):
+        if not config_file.exists():
             raise Exception('not configured', config_file)
+        elif config_file.stat().st_mode != 33200:
+            config_file.chmod(0o660)
 
-        with open(config_file) as f:
+        with config_file.open() as f:
             db_list = f.read().split()
 
         return db_list
