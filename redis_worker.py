@@ -29,9 +29,9 @@ def cycle2(structures):
         yield structures[0].copy()
 
 
-def run(structures=None, model=None):
+def run(structures, model):
     workpath = tempfile.mkdtemp(dir='/tmp')
-    mod = ModelSet().load_model(model['name'], workpath=workpath)
+    mod = ModelSet().load_model(model, workpath=workpath)
 
     results = mod.get_results(structures) if mod is not None else None
 
