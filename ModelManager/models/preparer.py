@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.preparer import CGRcombo
+from CGRtools.preparer import CGRpreparer
 from CGRtools.files.RDFrw import RDFread, RDFwrite
 from CGRtools.containers import ReactionContainer, MoleculeContainer
 from json import loads
@@ -31,20 +31,16 @@ from ..utils import get_additives, chemax_post
 model_name = 'Preparer'
 
 
-class Model(CGRcombo):
+class Model:
     def __init__(self):
         self.__workpath = '.'
         self.__additives = {x['name'].lower(): x for x in get_additives()}
 
         config_path = path.join(path.dirname(__file__), 'preparer')
-        b_path = path.join(config_path, 'b_templates.rdf')
-        m_path = path.join(config_path, 'm_templates.rdf')
+        templates = path.join(config_path, 'templates.rdf')
+        templates = RDFread(templates, is_template=True) if path.exists(templates) else False
 
-        b_templates = open(b_path) if path.exists(b_path) else None
-        m_templates = open(m_path) if path.exists(m_path) else None
-
-        CGRcombo.__init__(self, cgr_type='0', extralabels=True, isotope=False, element=True, stereo=False,
-                          b_templates=b_templates, m_templates=m_templates)
+        self.cgr = CGRpreparer(extralabels=True, templates=templates)
 
         with open(path.join(config_path, 'preparer.xml')) as f:
             self.__pre_rules = f.read()
@@ -91,13 +87,13 @@ class Model(CGRcombo):
         with StringIO(chemaxed['structure']) as in_file, StringIO() as out_file:
             rdf = RDFwrite(out_file)
             r = next(RDFread(in_file))
-            if isinstance(r, ReactionContainer) and r.products and r.substrats:  # ONLY FULL REACTIONS
+            if isinstance(r, ReactionContainer) and r.products and r.reagents:  # ONLY FULL REACTIONS
                 # todo: preparation for queries!!!
-                g = self.getCGR(r)
+                g = self.cgr.condense(r)
                 _type = StructureType.REACTION
                 _report = g.graph.get('CGR_REPORT', [])
                 _status = StructureStatus.HAS_ERROR if any('ERROR:' in x for x in _report) else StructureStatus.CLEAR
-                rdf.write(self.dissCGR(g))
+                rdf.write(self.cgr.dissociate(g))
             elif isinstance(r, MoleculeContainer):  # MOLECULES AND MIXTURES
                 _type = StructureType.MOLECULE
                 _report = []

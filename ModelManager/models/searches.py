@@ -87,7 +87,7 @@ class Model(object):
                         report = [dict(key='Tanimoto', value=y, type=ResultType.TEXT)] if y is not None else []
                         res.append(dict(structure=next(counter), data=f.getvalue(), type=self.__structure_type,
                                         status=StructureStatus.CLEAR, temperature=298, pressure=1, additives=[],
-                                        results=report))
+                                        results=report, description=[]))
         return res
 
 

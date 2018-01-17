@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2017, 2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -21,4 +21,4 @@
 
 
 def version():
-    return '1.2.3'
+    return '1.2.4'
