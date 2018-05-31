@@ -25,9 +25,9 @@ from traceback import format_exc
 
 
 SERVER_ROOT = 'https://cimm.kpfu.ru'
-ADDITIVES = "%s/api/resources/additives" % SERVER_ROOT
+ADDITIVES = '%s/api/jobs/additives' % SERVER_ROOT
 CHEMAXON = "%s/webservices" % SERVER_ROOT
-PREDICTOR = "%s/api/admin/models" % SERVER_ROOT
+PREDICTOR = "%s/api/jobs/admin/models" % SERVER_ROOT
 
 # redis server for task queue.
 REDIS_HOST = 'localhost'

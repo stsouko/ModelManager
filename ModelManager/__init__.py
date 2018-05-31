@@ -23,7 +23,7 @@ from sys import stderr
 from traceback import format_exc
 
 
-class ModelSet(object):
+class ModelSet:
     def __init__(self):
         self.__models = self.__scan_models()
 
@@ -31,7 +31,7 @@ class ModelSet(object):
 
     @staticmethod
     def __loader(mod):
-        return getattr(__import__('%s.models.%s' % (__name__, mod), globals(), locals()).models, mod).ModelLoader()
+        return getattr(__import__('%s.models.%s' % (__name__, mod), globals(), locals()).models, mod).ModelLoader
 
     @classmethod
     def __scan_models(cls):

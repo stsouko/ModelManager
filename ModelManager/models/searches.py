@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -19,34 +19,63 @@
 #  MA 02110-1301, USA.
 #
 from CGRdb import Loader
-from CGRtools.files.MRVrw import MRVwrite
-from CGRtools.files.RDFrw import RDFread
-from io import StringIO
+from CGRtools.files import MRVwrite, MRVread
+from io import StringIO, BytesIO
 from itertools import count
 from MWUI.constants import ModelType, ResultType, StructureType, StructureStatus
 from pony.orm import db_session
 from pathlib import Path
-from ..utils import chemax_post
 
 
-class Model(object):
-    def __init__(self, name, db_list):
+Loader.load_schemas()
+
+
+class ModelLoader:
+    def __init__(self, name):
         self.__type = self.__types[name][0]
         self.__func = self.__types[name][2]
         self.__structure_type = self.__types[name][3]
         self.__name = name
-        self.__dbs = {x: Loader.get_database(x)[self.__types[name][1]] for x in db_list}
+        self.__dbe = {x: Loader.get_database(x)[self.__types[name][1]] for x in self.__get_db_list()}
+        self.__example = self.__examples[self.__types[name][1]]
 
-    __types = {'Reaction Similarity': (ModelType.REACTION_SEARCHING, 1, 'find_similar', StructureType.REACTION),
-               'Molecule Similarity': (ModelType.MOLECULE_SEARCHING, 0, 'find_similar', StructureType.MOLECULE),
-               'Reaction Substructure': (ModelType.REACTION_SEARCHING, 1, 'find_substructures', StructureType.REACTION),
-               'Molecule Substructure': (ModelType.MOLECULE_SEARCHING, 0, 'find_substructures', StructureType.MOLECULE),
+    __types = {'Similar reactions': (ModelType.REACTION_SEARCHING, 1, 'find_similar', StructureType.REACTION),
+               'Similar molecules': (ModelType.MOLECULE_SEARCHING, 0, 'find_similar', StructureType.MOLECULE),
+               'Substructure reactions': (ModelType.REACTION_SEARCHING, 1, 'find_substructures',
+                                          StructureType.REACTION),
+               'Substructure molecules': (ModelType.MOLECULE_SEARCHING, 0, 'find_substructures',
+                                          StructureType.MOLECULE),
                'Reaction Structure': (ModelType.REACTION_SEARCHING, 1, 'find_structure', StructureType.REACTION),
-               'Molecule Structure': (ModelType.MOLECULE_SEARCHING, 0, 'find_structure', StructureType.MOLECULE)}
+               'Molecule Structure': (ModelType.MOLECULE_SEARCHING, 0, 'find_structure', StructureType.MOLECULE),
 
-    @staticmethod
-    def get_example():
-        return None
+               'Reactions contains molecule': (ModelType.MOLECULE_SEARCHING, 0, 'find_reaction_by_molecule',
+                                               StructureType.REACTION),
+               'Reactions contains product': (ModelType.MOLECULE_SEARCHING, 0, 'find_reaction_by_product',
+                                              StructureType.REACTION),
+               'Reactions contains reagent': (ModelType.MOLECULE_SEARCHING, 0, 'find_reaction_by_reagent',
+                                              StructureType.REACTION),
+
+               'Reactions with similar molecules': (ModelType.MOLECULE_SEARCHING, 0,
+                                                    'find_reaction_by_similar_molecule', StructureType.REACTION),
+               'Reactions with similar products': (ModelType.MOLECULE_SEARCHING, 0, 'find_reaction_by_similar_product',
+                                                   StructureType.REACTION),
+               'Reactions with similar reagents': (ModelType.MOLECULE_SEARCHING, 0, 'find_reaction_by_similar_reagent',
+                                                   StructureType.REACTION),
+
+               'Reactions with substructure molecules': (ModelType.MOLECULE_SEARCHING, 0,
+                                                         'find_reaction_by_substructure_molecule',
+                                                         StructureType.REACTION),
+               'Reactions with substructure products': (ModelType.MOLECULE_SEARCHING, 0,
+                                                        'find_reaction_by_substructure_product',
+                                                        StructureType.REACTION),
+               'Reactions with substructure reagents': (ModelType.MOLECULE_SEARCHING, 0,
+                                                        'find_reaction_by_substructure_reagent', StructureType.REACTION)
+               }
+
+    __examples = ({'data': 'CC=O'}, {'data': 'CC=O>>C=CO'})
+
+    def get_example(self):
+        return self.__example
 
     def get_description(self):
         return '%s model. frontend for CGRdb lib.' % self.__name
@@ -64,36 +93,59 @@ class Model(object):
         if len(structures) != 1:
             return False
 
-        chemaxed = chemax_post('calculate/molExport', dict(structure=structures[0]['data'], parameters='rdf'))
-        if not chemaxed:
-            return False
-
-        with StringIO(chemaxed['structure']) as f:
-            data = RDFread(f).read()
+        with BytesIO(structures[0]['data'].encode()) as f, MRVread(f) as r:
+            data = r.read()
 
         if len(data) != 1:
             return False
 
         res = []
         counter = count(1)
-        for k, entity in self.__dbs.items():
+        for e, entity in self.__dbe.items():
             with db_session:
                 tmp = getattr(entity, self.__func)(data[0])
-                for x, y in zip(*tmp) if isinstance(tmp, tuple) else [(tmp, None)]:
+                if isinstance(tmp, tuple):
+                    it = zip(*tmp)
+                elif isinstance(tmp, list):
+                    it = ((x, None) for x in tmp)
+                else:
+                    it = [(tmp, None)]
+
+                for r, t in it:
                     with StringIO() as f:
-                        mrv = MRVwrite(f)
-                        mrv.write(x.structure)
-                        mrv.finalize()
-                        report = [dict(key='Tanimoto', value=y, type=ResultType.TEXT)] if y is not None else []
-                        res.append(dict(structure=next(counter), data=f.getvalue(), type=self.__structure_type,
-                                        status=StructureStatus.CLEAR, temperature=298, pressure=1, additives=[],
-                                        results=report, description=[]))
+                        with MRVwrite(f) as w:
+                            w.write(r.structure)
+                        s = f.getvalue()
+
+                    report = [dict(key='Database', value=e, type=ResultType.TEXT)]
+                    if t is not None:
+                        report.append(dict(key='Tanimoto', value=t, type=ResultType.TEXT))
+
+                    res.append(dict(structure=next(counter), data=s, type=self.__structure_type,
+                                    status=StructureStatus.CLEAR, results=report))
+
+                    for m in r.metadata:
+                        d = m.data
+                        if isinstance(d, dict):
+                            for k, v in d.items():
+
+                                # AD-HOC for our data
+                                if k == 'additives' and isinstance(v, list) and v and isinstance(v[0], dict):
+                                    report.append(dict(key=k, type=ResultType.TEXT,
+                                                       value=', '.join('{0[name]} ({0[amount]})'.format(x) for x in v
+                                                                       if isinstance(x, dict) and
+                                                                       'name' in x and 'amount' in x)))
+                                elif k == 'description' and isinstance(v, list) and v and isinstance(v[0], dict):
+                                    report.append(dict(key=k, type=ResultType.TEXT,
+                                                       value=', '.join('{0[key]} = {0[value]}'.format(x) for x in v
+                                                                       if isinstance(x, dict)
+                                                                       and 'key' in x and 'value' in x)))
+                                else:
+                                    report.append(dict(key=k, value=v, type=ResultType.TEXT))
         return res
 
-
-class ModelLoader(object):
     @staticmethod
-    def get_db_list():
+    def __get_db_list():
         tmp = Path(__file__).resolve()
         config_dir = tmp.parent / tmp.stem
         config_file = config_dir / 'config.ini'
@@ -113,16 +165,12 @@ class ModelLoader(object):
 
         return db_list
 
-    __model_names = ('Reaction Similarity', 'Molecule Similarity',
-                     'Reaction Substructure', 'Molecule Substructure',
-                     'Reaction Structure', 'Molecule Structure')
-
     @classmethod
     def load_model(cls, name):
-        if name in cls.__model_names:
-            return Model(name, cls.get_db_list())
+        if name in cls.__types:
+            return cls(name)
 
     @classmethod
     def get_models(cls):
         return [dict(example=x.get_example(), description=x.get_description(),
-                     type=x.get_type(), name=x.get_name()) for x in (Model(x, []) for x in cls.__model_names)]
+                     type=x.get_type(), name=x.get_name()) for x in (cls(x) for x in cls.__types)]
