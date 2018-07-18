@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2015-2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2015-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@ from sys import stderr
 from traceback import format_exc
 
 
-class ModelSet(object):
+class ModelSet:
     def __init__(self):
         self.__models = self.__scan_models()
 
@@ -31,18 +31,18 @@ class ModelSet(object):
 
     @staticmethod
     def __loader(mod):
-        return getattr(__import__('%s.models.%s' % (__name__, mod), globals(), locals()).models, mod).ModelLoader()
+        return getattr(__import__('%s.models.%s' % (__name__, mod), globals(), locals()).models, mod).ModelLoader
 
-    def __scan_models(self):
+    @classmethod
+    def __scan_models(cls):
         models = {}
-        for mod in self.__models_dir.iterdir():
+        for mod in cls.__models_dir.iterdir():
             if mod.is_file() and mod.suffix in ('.py', '.pyo', '.pyc') and mod.name.lower() != '__init__.py':
                 modname = mod.stem
                 try:
-                    model_loader = self.__loader(modname)
-                    for x in model_loader.get_models():
+                    for x in cls.__loader(modname).get_models():
                         models[x['name']] = (modname, x)
-                except Exception:
+                except:
                     print('module %s consist errors:\n %s' % (mod, format_exc()), file=stderr)
         return models
 

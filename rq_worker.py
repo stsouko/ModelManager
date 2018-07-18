@@ -32,5 +32,12 @@ if CGR_DB and find_spec('CGRdb'):
     print("CGRdb preloaded")
     Loader.load_schemas()
 
+
+class EventWorker(Worker):
+    def execute_job(self, job, queue):
+        super().execute_job(job, queue)
+        self.connection.publish('done_jobs', job.id)
+
+
 with Connection(Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)):
-    Worker(argv[1:2] or ['default']).work()
+    EventWorker(argv[1:2] or ['default']).work()

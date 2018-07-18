@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2016, 2017 Ramil Nugmanov <stsouko@live.ru>
+#  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
 #  This file is part of ModelManager.
 #
 #  ModelManager is free software; you can redistribute it and/or modify
@@ -33,8 +33,9 @@ def run(structures, model):
     """
     model runner
     :param structures: list of {data: chemical structure (smiles mrv etc), pressure: float, temperature: float,
-                                additives: [{name: str, amount: float, type: AdditiveType(Enum)}], structure: int,
-                                status: MWUI.constants[StructureStatus], type: MWUI.constants[StructureType]} 
+                                additives: [{name: str, amount: float, type: MWUI.constants[AdditiveType(Enum)]}],
+                                structure: int, description: [{key: str, value: str}],
+                                status: MWUI.constants[StructureStatus], type: MWUI.constants[StructureType]}
     :param model: model name
     :return: updated list of structure dicts. new key - models: [dict(result: [dict,], **model arg)]
     
@@ -56,7 +57,7 @@ def run(structures, model):
 
     try:
         results = mod.get_results([x.copy() for x in structures])
-    except Exception:
+    except:
         print('Model not working:\n %s' % format_exc(), file=stderr)
         rmtree(workpath)
         return fail_prep('Model not working')
@@ -72,12 +73,12 @@ def run(structures, model):
 
     if mod.get_type() in (ModelType.REACTION_MODELING, ModelType.MOLECULE_MODELING):
         if any(s[x] != r[x] for s, r in zip(structures, results)
-               for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives')):
+               for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives', 'description')):
             print("Editing structure, properties and meta denied! ONLY results assign possible!")
             return fail_prep('Model broke data')
 
     if mod.get_type() == ModelType.PREPARER:
-        if any(s[x] != r[x] for s, r in zip(structures, results) for x in ('structure', 'additives')):
+        if any(s[x] != r[x] for s, r in zip(structures, results) for x in ('structure', 'additives', 'description')):
             print("Editing meta denied! "
                   "ONLY results assigning, data, temperature, pressure type nd status editing possible!")
             return fail_prep('Preparing model not working')
