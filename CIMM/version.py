@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2017, 2018 Ramil Nugmanov <stsouko@live.ru>
-#  This file is part of ModelManager.
+#  This file is part of CIMM (ChemoInformatics Models Manager).
 #
-#  ModelManager is free software; you can redistribute it and/or modify
+#  CIMM is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -21,4 +21,4 @@
 
 
 def version():
-    return '1.3.0'
+    return '1.4.0'
