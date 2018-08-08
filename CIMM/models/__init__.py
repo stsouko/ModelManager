@@ -26,7 +26,7 @@
 # | | \ \  | |___   / /__| | | |_| |  / /       | | | |___
 # |_|  \_\ |_____| /_/   |_| |_____/ /_/        |_| |_____|
 #
-# This __init__.py file is part of namespace package CIMM. This file needs to contain only the following:
+# This __init__.py file is part of namespace package CIMM.models. This file needs to contain only the following:
 
 __import__('pkg_resources').declare_namespace(__name__)
 

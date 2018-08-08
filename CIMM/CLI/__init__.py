@@ -18,19 +18,4 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-
-#  _____    _____       ___   _____       ___  ___   _____
-# |  _  \  | ____|     /   | |  _  \     /   |/   | | ____|
-# | |_| |  | |__      / /| | | | | |    / /|   /| | | |__
-# |  _  /  |  __|    / /_| | | | | |   / / |__/ | | |  __|
-# | | \ \  | |___   / /__| | | |_| |  / /       | | | |___
-# |_|  \_\ |_____| /_/   |_| |_____/ /_/        |_| |_____|
-#
-# This __init__.py file is part of namespace package CIMM. This file needs to contain only the following:
-
-__import__('pkg_resources').declare_namespace(__name__)
-
-# Every distribution that uses the namespace package CIMM must include an identical __init__.py.
-# If any distribution does not,
-# it will cause the namespace logic to fail and the other sub-packages will not be importable.
-# Any additional code in __init__.py will be inaccessible.
+from .worker import run, convert

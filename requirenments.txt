@@ -1,8 +1,0 @@
-requests
-dill
-pandas
-redis
-rq
-git+https://github.com/stsouko/CIMtools.git@master#egg=CIMtools
-git+https://github.com/stsouko/MWUI.git@magic#egg=MWUI
-git+https://github.com/stsouko/CGRdb.git@master#egg=CGRdb

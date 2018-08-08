@@ -19,7 +19,6 @@
 #  MA 02110-1301, USA.
 #
 from importlib import import_module
-from os.path import dirname
 from pkgutil import iter_modules
 from traceback import format_exc
 from warnings import warn
@@ -35,20 +34,23 @@ class Models:
             raise KeyError('model not found')
         return self.__models[name][0](name, workpath=self.__workpath)
 
-    def items(self):
-        return [x for _, x in self.__models.values()]
+    def __iter__(self):
+        return list(self.__models)
 
     def keys(self):
         return list(self.__models)
 
-    @classmethod
-    def __scan_models(cls):
+    def values(self):
+        return [x for _, x in self.__models.values()]
+
+    @staticmethod
+    def __scan_models():
         loaders = {}
-        for importer, modname, is_pkg in iter_modules([dirname(__file__)]):
-            if is_pkg:
-                module = import_module('CIMM.%s' % modname)
+        for module_info in iter_modules(import_module(__package__).__path__):
+            if module_info.ispkg:
+                module = import_module('{}.{}'.format(__package__, module_info.name))
                 if hasattr(module, 'ModelLoader'):
-                    loaders[modname] = module.ModelLoader
+                    loaders[module_info.name] = module.ModelLoader
 
         available = {}
         for modname, loader in loaders.items():
@@ -56,7 +58,6 @@ class Models:
                 models = loader.get_models()
             except:
                 warn('ModelLoader %s consist errors:\n %s' % (modname, format_exc()), ImportWarning)
-
             else:
                 for model in models:
                     available[model['name']] = loader, model

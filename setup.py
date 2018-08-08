@@ -26,8 +26,8 @@ from setuptools import setup, find_packages
 setup(
     name='CIMM-BASE',
     version=version(),
-    packages=find_packages(include=('CIMM', 'CIMM.*')),
-    namespace_packages=['CIMM'],
+    packages=find_packages(),
+    namespace_packages=['CIMM', 'CIMM.models', 'CIMM.REST'],
     zip_safe=True,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',

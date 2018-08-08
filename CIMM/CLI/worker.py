@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
@@ -21,12 +20,12 @@
 #
 from ModelManager import ModelSet
 from ModelManager.config import WORKPATH
-from ModelManager.utils import convert_upload
 from MWUI.constants import ModelType, ResultType
 from shutil import rmtree
 from sys import stderr
 from tempfile import mkdtemp
 from traceback import format_exc
+from ..utils import download_data
 
 
 def run(structures, model):
@@ -87,7 +86,7 @@ def run(structures, model):
 
 
 def convert(structures, model):
-    tmp = convert_upload(structures)
+    tmp = download_data(structures)
     if not tmp:
         raise Exception('File converter failed')
     return run(tmp, model)

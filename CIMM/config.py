@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-#  Copyright 2017 Ramil Nugmanov <stsouko@live.ru>
-#  This file is part of ModelManager.
+#  Copyright 2017, 2018 Ramil Nugmanov <stsouko@live.ru>
+#  This file is part of CIMM (ChemoInformatics Models Manager).
 #
-#  ModelManager is free software; you can redistribute it and/or modify
+#  CIMM is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -19,9 +19,8 @@
 #  MA 02110-1301, USA.
 #
 from pathlib import Path
-from os.path import expanduser  # python 3.4 ad-hoc
-from sys import stderr
 from traceback import format_exc
+from warnings import warn
 
 
 SERVER_ROOT = 'https://cimm.kpfu.ru'
@@ -39,7 +38,7 @@ WORKPATH = '/tmp'
 
 config_list = ('CHEMAXON', 'ADDITIVES', 'PREDICTOR', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD', 'WORKPATH', 'CGR_DB')
 
-config_dirs = [x / '.ModelManager.ini' for x in (Path(__file__).parent, Path(expanduser('~')), Path('/etc'))]
+config_dirs = [x / '.CIMM.ini' for x in (Path(__file__).parent, Path('~').expanduser(), Path('/etc'))]
 
 if not any(x.exists() for x in config_dirs):
     with config_dirs[1].open('w') as f:
@@ -56,4 +55,4 @@ with next(x for x in config_dirs if x.exists()).open() as f:
                 if k in config_list:
                     globals()[k] = int(v) if v.isdigit() else v == 'True' if v in ('True', 'False', '') else v
         except ValueError:
-            print('line %d\n\n%s\n consist errors: %s' % (n, line, format_exc()), file=stderr)
+            warn('line %d\n\n%s\n consist errors: %s' % (n, line, format_exc()), ResourceWarning)
