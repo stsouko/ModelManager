@@ -18,32 +18,36 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from marshmallow import ValidationError
 from json import loads
 from pkg_resources import resource_string
 from .constants import AdditiveType
 
 
 class Additive:
-    def __init__(self, name, amount):
-        try:
-            limit = self.limits[name]
-        except KeyError:
-            raise ValidationError('invalid name of additive')
+    def __init__(self, amount, name=None, _id=None):
+        if _id is not None:
+            name = self.names[_id]
+        else:
+            _id = self.ids[name]
+
+        limit = self.limits[name]
 
         if amount > limit:
-            raise ValidationError('invalid amount. expected in range [0:%d]' % self.limits[name])
+            raise ValueError('invalid amount. expected in range [0:%d]' % self.limits[name])
 
         self.name = name
         self.amount = amount
+        self.id = _id
         self.structure = self.structures[name]
-        self.additive = self.ids[name]
         self.type = self.types[name]
 
-    structures, limits, types, ids = {}, {}, {}, {}
-    with resource_string(__package__, 'additives.json') as s:
-        for n, a in enumerate(loads(s), start=1):
-            structures[a['name']] = a['structure']
-            limits[a['name']] = a['limit']
-            types[a['name']] = AdditiveType(a['type'])
-            ids[a['name']] = n
+    structures, limits, types, ids, names = {}, {}, {}, {}, {}
+    for n, a in enumerate(loads(resource_string(__package__, 'additives.json')), start=1):
+        names[n] = name = a['name']
+        structures[name] = a['structure']
+        limits[name] = a['limit']
+        types[name] = AdditiveType(a['type'])
+        ids[name] = n
+
+    def __repr__(self):
+        return "%s(%.5f, %s)" % (type(self).__name__, self.amount, repr(self.name))
