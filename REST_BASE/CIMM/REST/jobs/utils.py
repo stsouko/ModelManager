@@ -18,26 +18,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask_restplus import Namespace
-from .marshal import structure_document, post_response
-from ..restplus import AuthResource
-from ...constants import TaskType
+from flask import current_app
+from functools import wraps
+from redis import Redis, ConnectionError
+from .models import get_schema
+from ..utils import abort
 
 
-api = Namespace('create', description='job creation')
-
-
-@api.route('/<int:_type>')
-@api.param('_type', 'Task type ID: ' + ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType), _in='path')
-class CreateTask(AuthResource):
-    @api.expect(structure_document)
-    @api.response(400, 'invalid structure data')
-    @api.response(401, 'user not authenticated')
-    @api.response(403, 'invalid task type')
-    @api.response(500, 'modeling server error')
-    @api.marshal_with(post_response, code=201, description='validation task created')
-    def post(self, _type):
-        """
-        Create new task
-        """
-        print(api.payload)
+def pass_db_redis(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        db = get_schema(current_app.config['JOBS_DB_SCHEMA'])
+        redis = Redis(host=current_app.config['REDIS_HOST'], port=current_app.config['REDIS_PORT'],
+                      password=current_app.config['REDIS_PASSWORD'])
+        try:
+            redis.ping()
+        except ConnectionError:
+            abort(500, 'dispatcher server error')
+        return f(*args, db=db, redis=redis, **kwargs)
+    return wrapper

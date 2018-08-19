@@ -18,12 +18,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.containers import MoleculeContainer, ReactionContainer
+from CGRtools.files import RDFread, SDFread, MRVread, MRVwrite
 from enum import Enum
+from io import StringIO, BytesIO
 from marshmallow import Schema, pre_dump, post_load, ValidationError
-from marshmallow.fields import String, Integer, Float, Nested, Boolean, DateTime
+from marshmallow.fields import String, Integer, Float, Nested, Boolean, DateTime, Method
 from marshmallow.validate import Range, Length
 from ...additives import Additive
-from ...constants import TaskStatus, TaskType, AdditiveType
+from ...constants import TaskStatus, TaskType, AdditiveType, StructureType, StructureStatus, ModelType, ResultType
 
 
 class IntEnumField(Integer):
@@ -46,6 +49,47 @@ class IntEnumField(Integer):
                               'not_enum': 'not a Enum', 'unknown_enum': 'not a valid Enum key'}
 
 
+class StructureField(String):
+    def _serialize(self, value, attr, obj):
+        if isinstance(value, (MoleculeContainer, ReactionContainer)):
+            with StringIO() as f:
+                with MRVwrite(f) as w:
+                    try:
+                        w.write(value)
+                    except (ValueError, KeyError):
+                        self.fail('not_container')
+                return f.getvalue()
+        self.fail('not_container')
+
+    def _deserialize(self, value, attr, data):
+        value = super()._deserialize(value, attr, data)
+        if 'MChemicalStruct' in value:
+            with BytesIO(value.encode()) as f, MRVread(f) as r:
+                try:
+                    return next(r)
+                except StopIteration:
+                    self.fail('not_mrv')
+        elif '$RXN' in value:
+            with StringIO(value) as f, RDFread(f) as r:
+                try:
+                    return next(r)
+                except StopIteration:
+                    self.fail('not_rdf')
+        elif 'V2000' in value or 'V3000' in value:
+            with StringIO(value) as f, SDFread(f) as r:
+                try:
+                    return next(r)
+                except StopIteration:
+                    self.fail('not_sdf')
+        else:
+            self.fail('unknown')
+
+    default_error_messages = {'invalid': 'not a valid string', 'invalid_utf8': 'not a valid utf-8 string',
+                              'not_container': 'not a valid CGRtools container', 'not_mrv': 'not a valid mrv file',
+                              'not_rdf': 'not a valid rdf file', 'not_sdf': 'not a valid sdf file',
+                              'unknown': 'unknown structure file'}
+
+
 class DescriptionSchema(Schema):
     key = String()
     value = String()
@@ -53,14 +97,14 @@ class DescriptionSchema(Schema):
 
 class AdditiveSchema(Schema):
     additive = Integer(required=True, validate=Range(1), attribute='id',
-                       title='id of additive', description='additive should be in list of available additives')
-    amount = Float(required=True, validate=Range(0), title='amount of additive',
-                   description='for solvents amount is part in mixture. for pure solvents it should be 1. '
-                               'molar concentration for overs')
+                       description='id of additive. additive should be in list of available additives')
+    amount = Float(required=True, validate=Range(0),
+                   description='amount of additive. for solvents amount is part in mixture. '
+                               'for pure solvents it should be 1. molar concentration for overs')
     name = String(dump_only=True, title='name of additive')
-    structure = String(dump_only=True, title='structure of additive')
-    type = IntEnumField(AdditiveType, dump_only=True, title='type of additive',
-                        description='possible one of the following: ' +
+    structure = String(dump_only=True, description='structure of additive')
+    type = IntEnumField(AdditiveType, dump_only=True,
+                        description='type of additive. possible one of the following: ' +
                                     ', '.join('{0.value} - {0.name}'.format(x) for x in AdditiveType))
 
     @post_load
@@ -79,30 +123,60 @@ class AdditiveSchema(Schema):
         raise ValidationError('expected %s. %s received' % (Additive, type(obj)))
 
 
+class ModelingResultSchema(Schema):
+    type = IntEnumField(ResultType, description='type of result. possible one of the following: ' +
+                                                ', '.join('{0.value} - {0.name}'.format(x) for x in ResultType))
+    key = String(description='key of result. key is a header or title or uid of result')
+    value = Method('dump', dump_only=True, description='result data')
+
+    def dump(self, obj):
+        return obj  # todo: extend
+
+
+class ModelSchema(Schema):
+    model = Integer(required=True, validate=Range(1),
+                    description='id of model. need for selecting models which will be applied to structure')
+    name = String(dump_only=True, description='name of model')
+    type = IntEnumField(ModelType, dump_only=True,
+                        description='type of model. possible one of the following: ' +
+                                    ', '.join('{0.value} - {0.name}'.format(x) for x in ModelType))
+    description = String(dump_only=True, description='description of model')
+    results = Nested(ModelingResultSchema, many=True, dump_only=True)
+
+
 class DocumentSchema(Schema):
-    temperature = Float(missing=298, validate=Range(100, 600), title='temperature',
-                        description='temperature of media in Kelvin')
-    pressure = Float(missing=1, validate=Range(0, 100000), title='pressure',
-                     description='pressure of media in bars')
+    temperature = Float(missing=298, validate=Range(100, 600), description='temperature of media in Kelvin')
+    pressure = Float(missing=1, validate=Range(0, 100000), description='pressure of media in bars')
     description = Nested(DescriptionSchema, many=True, missing=list, default=list)
     additives = Nested(AdditiveSchema, many=True, missing=list, default=list)
 
-    data = String(required=True, validate=Length(2), title='structure of molecule or reaction',
-                  description='string containing marvin document or MDL RDF|SDF or smiles/smirks')
+    _data_td = dict(description='string containing MRV or MDL RDF|SDF structure')
+    #data = StructureField(required=True, validate=Length(2), **_data_td)
 
-    structure = Integer()
-    todelete = Boolean(load_only=True, title='delete structure',
+
+class PreparingDocumentSchema(DocumentSchema):
+    structure = Integer(required=True, validate=Range(1),
+                        description='structure id for mapping of changes to records in previously validated document')
+    todelete = Boolean(load_only=True,
                        description='exclude this structure from document before revalidation or modeling')
+    status = IntEnumField(StructureStatus, dump_only=True,
+                          description='validation status of structure. possible one of the following: ' +
+                                      ', '.join('{0.value} - {0.name}'.format(x) for x in StructureStatus))
+    type = IntEnumField(StructureType, dump_only=True,
+                        description='type of validated structure. possible one of the following: ' +
+                                    ', '.join('{0.value} - {0.name}'.format(x) for x in StructureType))
+    data = StructureField(validate=Length(2), **DocumentSchema._data_td)
+
+
+class ModelingDocumentSchema(PreparingDocumentSchema):
+    data = StructureField(dump_only=True, **DocumentSchema._data_td)
 
 
 class PostResponseSchema(Schema):
-    task = String(title='job unique id')
-    status = IntEnumField(TaskStatus, title='current state of job',
-                          description='possible one of the following: ' +
-                                      ', '.join('{0.value} - {0.name}'.format(x) for x in TaskStatus))
-    type = IntEnumField(TaskType, title='job type',
-                        description='possible one of the following: ' +
-                                    ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType))
-
+    task = String(description='job unique id')
+    status = IntEnumField(TaskStatus, description='current state of job. possible one of the following: ' +
+                                                  ', '.join('{0.value} - {0.name}'.format(x) for x in TaskStatus))
+    type = IntEnumField(TaskType, description='type of job. possible one of the following: ' +
+                                              ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType))
     date = DateTime(format='iso8601')
-    user = Integer(attribute='id', title='job owner ID')
+    user = Integer(attribute='id', description='job owner id')

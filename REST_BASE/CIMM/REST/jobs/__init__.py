@@ -18,24 +18,24 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from apispec import APISpec
+from apispec.ext.marshmallow import MarshmallowPlugin
 from flask import Blueprint
-from flask_restplus import Api
-from .create import api as create
-from .marshal import structure_document, description, amounted_additives, post_response
+from flask_apispec import FlaskApiSpec
+from .models import get_schema
+from .resourses import CreateTask
+from .resourses.create import TaskTypeConverter
 
 
 blueprint = Blueprint('jobs', __name__)
-api = Api(blueprint,
-          title='CIMM Jobs',
-          version='1.0',
-          description='CIMM Jobs REST API',
-          validate=True
-          )
+blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
+blueprint.record_once(lambda state:
+                      state.app.config.update(APISPEC_SPEC=APISpec(title='Jobs API', version='1.0.0',
+                                                                   openapi_version='2.0',
+                                                                   plugins=(MarshmallowPlugin(),))))
 
-api.models[structure_document.name] = structure_document
-api.models[description.name] = description
-api.models[amounted_additives.name] = amounted_additives
-api.models[post_response.name] = post_response
+blueprint.add_url_rule('/create/<TaskType:_type>', endpoint='create', view_func=CreateTask.as_view('create'))
 
 
-api.add_namespace(create, path='/create')
+docs = FlaskApiSpec()
+docs.register(CreateTask, endpoint='create', blueprint='jobs')

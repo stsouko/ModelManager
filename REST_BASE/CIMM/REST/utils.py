@@ -19,13 +19,8 @@
 #  MA 02110-1301, USA.
 #
 from flask_login import current_user
-from flask_restplus import Resource, abort
-from flask_restplus.fields import Integer, MarshallingError
 from functools import wraps
-from pony.orm import db_session
-
-
-# resourses
+from werkzeug.exceptions import HTTPException, Aborter
 
 
 def authenticate(f):
@@ -39,41 +34,22 @@ def authenticate(f):
     return wrapper
 
 
-class AuthResource(Resource):
-    method_decorators = [authenticate]
+def abort(http_status_code, message=None, **kwargs):
+    """ copy-paste from flask-restful
+    """
+    try:
+        original_flask_abort(http_status_code)
+    except HTTPException as e:
+        if message:
+            kwargs['message'] = str(message)
+        if kwargs:
+            e.data = kwargs
+        raise
 
 
-class DBAuthResource(AuthResource):
-    method_decorators = AuthResource.method_decorators + [db_session]
+class Abort512(HTTPException):
+    code = 512
+    description = 'task not ready'
 
 
-# fields
-
-
-class UnEnumField(Integer):
-    def format(self, value):
-        return value.value
-
-
-class UserIDField(Integer):
-    def format(self, value):
-        return value.id
-
-
-def enum_field_factory(enum):
-    class EnumFieldMeta(type):
-        def __new__(mcs, *args, **kwargs):
-            return super().__new__(mcs, enum.__name__ + 'Field', *args, **kwargs)
-
-    class EnumField(Integer, metaclass=EnumFieldMeta):
-        def __init__(self, default=0, **kwargs):
-            super().__init__(default=enum(default), **kwargs)
-
-        def format(self, value):
-            try:
-                mt = enum(value)
-            except ValueError as ve:
-                raise MarshallingError(ve)
-            return mt
-
-    return EnumField
+original_flask_abort = Aborter(extra={512: Abort512})
