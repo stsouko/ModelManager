@@ -19,7 +19,7 @@
 #  MA 02110-1301, USA.
 #
 from CGRtools.containers import MoleculeContainer, ReactionContainer
-from CGRtools.files import RDFread, SDFread, MRVread, MRVwrite
+from CGRtools.files import RDFread, SDFread, MRVread, MRVwrite, SMILESread
 from enum import Enum
 from io import StringIO, BytesIO
 from marshmallow import Schema, pre_dump, post_load, ValidationError
@@ -69,20 +69,26 @@ class StructureField(String):
                     return next(r)
                 except StopIteration:
                     self.fail('not_mrv')
-        elif '$RXN' in value:
-            with StringIO(value) as f, RDFread(f) as r:
-                try:
-                    return next(r)
-                except StopIteration:
-                    self.fail('not_rdf')
-        elif 'V2000' in value or 'V3000' in value:
-            with StringIO(value) as f, SDFread(f) as r:
-                try:
-                    return next(r)
-                except StopIteration:
-                    self.fail('not_sdf')
         else:
-            self.fail('unknown')
+            with StringIO(value) as f:
+                if '$RXN' in value:
+                    with RDFread(f) as r:
+                        try:
+                            return next(r)
+                        except StopIteration:
+                            self.fail('not_rdf')
+                elif 'V2000' in value or 'V3000' in value:
+                    with SDFread(f) as r:
+                        try:
+                            return next(r)
+                        except StopIteration:
+                            self.fail('not_sdf')
+                else:
+                    with SMILESread(f) as r:
+                        try:
+                            return next(r)
+                        except StopIteration:
+                            self.fail('unknown')
 
     default_error_messages = {'invalid': 'not a valid string', 'invalid_utf8': 'not a valid utf-8 string',
                               'not_container': 'not a valid CGRtools container', 'not_mrv': 'not a valid mrv file',
@@ -151,7 +157,7 @@ class DocumentSchema(Schema):
     additives = Nested(AdditiveSchema, many=True, missing=list, default=list)
 
     _data_td = dict(description='string containing MRV or MDL RDF|SDF structure')
-    #data = StructureField(required=True, validate=Length(2), **_data_td)
+    data = StructureField(required=True, validate=Length(2), **_data_td)
 
 
 class PreparingDocumentSchema(DocumentSchema):

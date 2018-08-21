@@ -18,6 +18,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from functools import partial
+from ...constants import ModelType
 
 
 class Model:
@@ -145,11 +147,47 @@ class Model:
 
 
 class ModelLoader:
+    def __call__(self, structures):
+        pass
+
     def __init__(self, name, workpath='.'):
         self.__workpath = workpath
 
+    def __new__(cls, name, *args, **kwargs):
+        if name != 'Preparer':
+            raise ImportError(f"model '{name}' not found")
+        return super().__new__(cls)
+
     @staticmethod
-    def get_models():
-        model = Model()
-        return [dict(example=model.get_example(), description=model.get_description(),
-                     type=model.get_type(), name=model.get_name())]
+    def _get_models():
+        return ['Preparer']
+
+    @property
+    def name(self):
+        return 'Structure Preparer'
+
+    @property
+    def class_name(self):
+        return 'Preparer'
+
+    @property
+    def description(self):
+        return 'Structure checking and possibly fixing'
+
+    @property
+    def type(self):
+        return ModelType.PREPARER
+
+    @property
+    def example(self):
+        return None
+
+
+def __getattr__(name):
+    if name not in ModelLoader._get_models():
+        raise ImportError(f"model '{name}' not found")
+    return partial(ModelLoader, name)
+
+
+def __dir__():
+    return ModelLoader._get_models()

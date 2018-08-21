@@ -24,41 +24,35 @@ from traceback import format_exc
 from warnings import warn
 
 
-class Models:
-    def __init__(self, workpath='.'):
-        self.__models = self.__scan_models()
-        self.__workpath = workpath
+def __getattr__(name):
+    models = _scan_models()
+    if name in models:
+        module = import_module(f'{__package__}.{models[name]}')
+        return getattr(module, name)
 
-    def __getitem__(self, name):
-        if name not in self.__models:
-            raise KeyError('model not found')
-        return self.__models[name][0](name, workpath=self.__workpath)
 
-    def __iter__(self):
-        return list(self.__models)
+def __dir__():
+    return list(_scan_models())
 
-    def keys(self):
-        return list(self.__models)
 
-    def values(self):
-        return [x for _, x in self.__models.values()]
+def _scan_models():
+    loaders = {}
+    for module_info in iter_modules(import_module(__package__).__path__):
+        if module_info.ispkg:
+            module = import_module(f'{__package__}.{module_info.name}')
+            if hasattr(module, 'ModelLoader'):
+                loaders[module_info.name] = module.ModelLoader
 
-    @staticmethod
-    def __scan_models():
-        loaders = {}
-        for module_info in iter_modules(import_module(__package__).__path__):
-            if module_info.ispkg:
-                module = import_module('{}.{}'.format(__package__, module_info.name))
-                if hasattr(module, 'ModelLoader'):
-                    loaders[module_info.name] = module.ModelLoader
-
-        available = {}
-        for modname, loader in loaders.items():
-            try:
-                models = loader.get_models()
-            except:
-                warn('ModelLoader %s consist errors:\n %s' % (modname, format_exc()), ImportWarning)
-            else:
-                for model in models:
-                    available[model['name']] = loader, model
-        return available
+    available = {}
+    for module_name, loader in loaders.items():
+        try:
+            models = loader._get_models()
+        except:
+            warn(f"{module_name}.ModelLoader consist errors:\n {format_exc()}", ImportWarning)
+        else:
+            for model_name in models:
+                if model_name in available:
+                    warn(f"{module_name}.ModelLoader has conflict model_name name: {model_name}", ImportWarning)
+                else:
+                    available[model_name] = module_name
+    return available
