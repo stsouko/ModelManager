@@ -18,11 +18,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from CGRtools.files import RDFread, MRVwrite
+from CGRtools.files import RDFread, MRVwrite, MRVread, SDFread, SMILESread
 from CGRtools.containers import ReactionContainer
 from CIMtools.config import MOLCONVERT
 from CIMtools.datasets import molconvert_chemaxon
-from io import StringIO
+from io import StringIO, BytesIO
 from json import dumps
 from MWUI.constants import AdditiveType, StructureType, StructureStatus
 from re import split
@@ -36,17 +36,6 @@ def chemax_post(url, data):
 
     if q.status_code in (201, 200):
         return q.json()
-    return False
-
-
-def get_additives():
-    for _ in range(2):
-        q = get(ADDITIVES)
-        if q.status_code in (201, 200):
-            res = q.json()
-            for a in res:
-                a['type'] = AdditiveType(a['type'])
-            return res
 
 
 def server_post(data, user, password):
@@ -70,82 +59,94 @@ def download_data(url):
     if r.status_code != 200:
         return False
 
-    c = molconvert_chemaxon(r.content)
+    if b'MChemicalStruct' in r.content:
+        with BytesIO(r.content) as f, MRVread(f) as r:
+            data = r.read()
+    else:
+        with StringIO(r.text) as f:
+            if b'$RXN' in r.content:
+                with RDFread(f) as r:
+                    data = r.read()
+            elif b'V2000' in r.content or b'V3000' in r.content:
+                with SDFread(f) as r:
+                    data = r.read()
+            else:
+                with SMILESread(f) as r:
+                    data = r.read()
 
     report = []
-    with StringIO(res) as mol_in:
-        for n, r in enumerate(RDFread(mol_in), start=1):
-            _meta = r.meta.copy()
-            r.meta.clear()
+    for n, r in enumerate(data, start=1):
+        _meta = r.meta.copy()
+        r.meta.clear()
 
-            if isinstance(r, ReactionContainer):
-                _type = StructureType.REACTION
-            else:  # MOLECULES AND MIXTURES
-                _type = StructureType.MOLECULE
+        if isinstance(r, ReactionContainer):
+            _type = StructureType.REACTION
+        else:  # MOLECULES AND MIXTURES
+            _type = StructureType.MOLECULE
 
-            """
-                $DTYPE additive.amount.1
-                $DATUM name = .5
-                $DTYPE temperature
-                $DATUM 40
-                $DTYPE pressure
-                $DATUM 0.9
-                $DTYPE additive.2
-                $DATUM name
-                $DTYPE amount.2
-                $DATUM 0.5
-            """
-            tmp_add = {}
-            for k, v in _meta.items():
-                if k.startswith('additive.amount.'):
-                    key = k[16:]
+        """
+            $DTYPE additive.amount.1
+            $DATUM name = .5
+            $DTYPE temperature
+            $DATUM 40
+            $DTYPE pressure
+            $DATUM 0.9
+            $DTYPE additive.2
+            $DATUM name
+            $DTYPE amount.2
+            $DATUM 0.5
+        """
+        tmp_add = {}
+        for k, v in _meta.items():
+            if k.startswith('additive.amount.'):
+                key = k[16:]
+                try:
+                    a_name, *_, a_amount = split('[:=]+', v)
+                    additive = additives.get(a_name.strip().lower())
+                    if additive and key:
+                        _v = float(a_amount.replace('%', '')) / 100 if '%' in a_amount else float(a_amount)
+                        tmp_add[key] = dict(amount=_v, **additive)
+                except ValueError:
+                    pass
+            elif k.startswith('additive.'):
+                key = k[9:]
+                additive = additives.get(v.lower())
+                if additive and key:
+                    tmp_add.setdefault(key, dict(amount=1)).update(additive)
+
+            elif k.startswith('amount.'):
+                key = k[7:]
+                if key:
                     try:
-                        a_name, *_, a_amount = split('[:=]+', v)
-                        additive = additives.get(a_name.strip().lower())
-                        if additive and key:
-                            _v = float(a_amount.replace('%', '')) / 100 if '%' in a_amount else float(a_amount)
-                            tmp_add[key] = dict(amount=_v, **additive)
+                        _v = float(v.replace('%', '')) / 100 if '%' in v else float(v)
+                        tmp_add.setdefault(key, {})['amount'] = _v
                     except ValueError:
                         pass
-                elif k.startswith('additive.'):
-                    key = k[9:]
-                    additive = additives.get(v.lower())
-                    if additive and key:
-                        tmp_add.setdefault(key, dict(amount=1)).update(additive)
 
-                elif k.startswith('amount.'):
-                    key = k[7:]
-                    if key:
-                        try:
-                            _v = float(v.replace('%', '')) / 100 if '%' in v else float(v)
-                            tmp_add.setdefault(key, {})['amount'] = _v
-                        except ValueError:
-                            pass
+        additives = []
+        for i in sorted(tmp_add):
+            if 'name' in tmp_add[i]:
+                additives.append(tmp_add[i])
 
-            additives = []
-            for i in sorted(tmp_add):
-                if 'name' in tmp_add[i]:
-                    additives.append(tmp_add[i])
+        tmp = _meta.pop('pressure', 1)
+        try:
+            pressure = float(tmp)
+        except ValueError:
+            pressure = 1
 
-            tmp = _meta.pop('pressure', 1)
-            try:
-                pressure = float(tmp)
-            except ValueError:
-                pressure = 1
+        tmp = _meta.pop('temperature', 298)
+        try:
+            temperature = float(tmp)
+        except ValueError:
+            temperature = 298
 
-            tmp = _meta.pop('temperature', 298)
-            try:
-                temperature = float(tmp)
-            except ValueError:
-                temperature = 298
+        with StringIO() as mol_out:
+            mrv = MRVwrite(mol_out)
+            mrv.write(r)
+            mrv.finalize()
+            structure = mol_out.getvalue()
 
-            with StringIO() as mol_out:
-                mrv = MRVwrite(mol_out)
-                mrv.write(r)
-                mrv.finalize()
-                structure = mol_out.getvalue()
-
-            report.append(dict(structure=n, data=structure, status=StructureStatus.RAW, type=_type, additives=additives,
-                               pressure=pressure, temperature=temperature))
+        report.append(dict(structure=n, data=structure, status=StructureStatus.RAW, type=_type, additives=additives,
+                           pressure=pressure, temperature=temperature))
 
     return report

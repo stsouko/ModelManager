@@ -18,38 +18,24 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask_login import current_user
-from functools import wraps
-from werkzeug.exceptions import HTTPException, Aborter
+from flask import Blueprint
+from flask_restplus import Api
+from .create import api as create
+from .marshal import structure_document, description, amounted_additives, post_response
 
 
-def authenticate(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if current_user.is_authenticated or True:
-            return f(*args, **kwargs)
+blueprint = Blueprint('magic', __name__)
+api = Api(blueprint,
+          title='CIMM magic',
+          version='1.0',
+          description='CIMM auth and common resources REST API',
+          validate=True
+          )
 
-        abort(401, 'not authenticated')
-
-    return wrapper
-
-
-def abort(http_status_code, message=None, **kwargs):
-    """ copy-paste from flask-restful
-    """
-    try:
-        original_flask_abort(http_status_code)
-    except HTTPException as e:
-        if message:
-            kwargs['message'] = str(message)
-        if kwargs:
-            e.data = kwargs
-        raise
+api.models[structure_document.name] = structure_document
+api.models[description.name] = description
+api.models[amounted_additives.name] = amounted_additives
+api.models[post_response.name] = post_response
 
 
-class Abort512(HTTPException):
-    code = 512
-    description = 'task not ready'
-
-
-original_flask_abort = Aborter(extra={512: Abort512})
+api.add_namespace(create, path='/create')

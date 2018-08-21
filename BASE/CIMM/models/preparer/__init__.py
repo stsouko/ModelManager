@@ -185,7 +185,7 @@ class ModelLoader:
 
 def __getattr__(name):
     if name not in ModelLoader._get_models():
-        raise ImportError(f"model '{name}' not found")
+        raise AttributeError(f"model '{name}' not found")
     return partial(ModelLoader, name)
 
 

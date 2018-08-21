@@ -158,7 +158,7 @@ class ModelLoader(object):
         pass
 
     @staticmethod
-    def load_model(name):
+    def get_model(name):
         if name == model_name:
             return Model()
 

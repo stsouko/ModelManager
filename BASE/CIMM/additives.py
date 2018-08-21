@@ -51,3 +51,8 @@ class Additive:
 
     def __repr__(self):
         return "%s(%.5f, %s)" % (type(self).__name__, self.amount, repr(self.name))
+
+    def __eq__(self, other):
+        if isinstance(other, Additive):
+            return self.name == other.name and self.amount == other.amount
+        return False

@@ -18,38 +18,15 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask_login import current_user
-from functools import wraps
-from werkzeug.exceptions import HTTPException, Aborter
+from flask_restplus import Model
+from flask_restplus.fields import String
+from ..restplus import UnEnumField, UserIDField
 
 
-def authenticate(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if current_user.is_authenticated or True:
-            return f(*args, **kwargs)
+login = Model('LogIn', {'user': String(title='login', min_length=5), 'password': String(min_length=1)})
 
-        abort(401, 'not authenticated')
-
-    return wrapper
-
-
-def abort(http_status_code, message=None, **kwargs):
-    """ copy-paste from flask-restful
-    """
-    try:
-        original_flask_abort(http_status_code)
-    except HTTPException as e:
-        if message:
-            kwargs['message'] = str(message)
-        if kwargs:
-            e.data = kwargs
-        raise
-
-
-class Abort512(HTTPException):
-    code = 512
-    description = 'task not ready'
-
-
-original_flask_abort = Aborter(extra={512: Abort512})
+login_response = Model('LogInResponse',
+                       {'user': UserIDField(title='user ID'),
+                        'name': String(attribute='full_name', title='user name'),
+                        'role': UnEnumField(attribute='role', title='user role')}
+                       )

@@ -29,6 +29,7 @@ def __getattr__(name):
     if name in models:
         module = import_module(f'{__package__}.{models[name]}')
         return getattr(module, name)
+    raise AttributeError(f"model '{name}' not found")
 
 
 def __dir__():
