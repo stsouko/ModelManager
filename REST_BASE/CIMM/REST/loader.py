@@ -22,31 +22,24 @@ from importlib import import_module
 from pkgutil import iter_modules
 
 
-class API:
-    def __init__(self):
-        self.__apis = self.__scan_api()
+def __getattr__(name):
+    apis = _scan_apis()
+    if name in apis:
+        module = import_module(f'{__package__}.{apis[name]}')
+        return module.blueprint
+    raise AttributeError(f"api '{name}' not found")
 
-    def __getitem__(self, name):
-        if name not in self.__apis:
-            raise KeyError('api not found')
-        return self.__apis[name]
 
-    def __iter__(self):
-        return list(self.__apis)
+def __dir__():
+    return list(_scan_apis())
 
-    def keys(self):
-        return list(self.__apis)
 
-    def values(self):
-        return list(self.__apis.values())
+def _scan_apis():
+    apis = {}
+    for module_info in iter_modules(import_module(__package__).__path__):
+        if module_info.ispkg:
+            module = import_module(f'{__package__}.{module_info.name}')
+            if hasattr(module, 'docs') and hasattr(module, 'blueprint'):
+                apis[module.blueprint.name] = module_info.name
 
-    @staticmethod
-    def __scan_api():
-        apis = {}
-        for module_info in iter_modules(import_module(__package__).__path__):
-            if module_info.ispkg:
-                module = import_module('{}.{}'.format(__package__, module_info.name))
-                if hasattr(module, 'api') and hasattr(module, 'blueprint'):
-                    apis[module_info.name] = module.blueprint
-
-        return apis
+    return apis

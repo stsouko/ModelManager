@@ -27,15 +27,16 @@ from .resourses import CreateTask
 from .resourses.create import TaskTypeConverter
 
 
-blueprint = Blueprint('jobs', __name__)
+docs = FlaskApiSpec()
+docs.register(CreateTask, endpoint='create', blueprint='JobsAPI')
+
+blueprint = Blueprint('JobsAPI', __name__)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
-blueprint.record_once(lambda state:
-                      state.app.config.update(APISPEC_SPEC=APISpec(title='Jobs API', version='1.0.0',
-                                                                   openapi_version='2.0',
-                                                                   plugins=(MarshmallowPlugin(),))))
+blueprint.record_once(lambda state: state.app.config.update(APISPEC_SPEC=APISpec(title='Jobs API', version='1.0.0',
+                                                                                 openapi_version='2.0',
+                                                                                 plugins=(MarshmallowPlugin(),))))
 
 blueprint.add_url_rule('/create/<TaskType:_type>', endpoint='create', view_func=CreateTask.as_view('create'))
 
-
-docs = FlaskApiSpec()
-docs.register(CreateTask, endpoint='create', blueprint='jobs')
+# DON'T MOVE. docs.init_app should be after all routes definition
+blueprint.record_once(lambda state: docs.init_app(state.app))
