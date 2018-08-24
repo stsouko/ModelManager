@@ -63,6 +63,9 @@ class StructureField(String):
 
     def _deserialize(self, value, attr, data):
         value = super()._deserialize(value, attr, data)
+        if not value:
+            self.fail('empty')
+
         if 'MChemicalStruct' in value:
             with BytesIO(value.encode()) as f, MRVread(f) as r:
                 try:
@@ -93,7 +96,7 @@ class StructureField(String):
     default_error_messages = {'invalid': 'not a valid string', 'invalid_utf8': 'not a valid utf-8 string',
                               'not_container': 'not a valid CGRtools container', 'not_mrv': 'not a valid mrv file',
                               'not_rdf': 'not a valid rdf file', 'not_sdf': 'not a valid sdf file',
-                              'unknown': 'unknown structure file'}
+                              'unknown': 'unknown structure file', 'empty': 'empty structure data'}
 
 
 class DescriptionSchema(Schema):
@@ -157,7 +160,7 @@ class DocumentSchema(Schema):
     additives = Nested(AdditiveSchema, many=True, missing=list, default=list)
 
     _data_td = dict(description='string containing MRV or MDL RDF|SDF structure')
-    data = StructureField(required=True, validate=Length(2), **_data_td)
+    data = StructureField(required=True, **_data_td)
 
     @post_load
     def _set_type(self, data):
@@ -179,7 +182,7 @@ class PreparingDocumentSchema(DocumentSchema):
     type = IntEnumField(StructureType, dump_only=True,
                         description='type of validated structure. possible one of the following: ' +
                                     ', '.join('{0.value} - {0.name}'.format(x) for x in StructureType))
-    data = StructureField(validate=Length(2), **DocumentSchema._data_td)
+    data = StructureField(**DocumentSchema._data_td)
     models = Nested(ModelSchema, many=True, missing=list, default=list)
 
 
