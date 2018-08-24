@@ -34,6 +34,7 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
+    entry_points={'console_scripts': ['cimm_worker=CIMM.CLI.worker:run']},
     install_requires=['requests'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),

@@ -22,7 +22,8 @@ from datetime import datetime
 from pony.orm import PrimaryKey, Required, Optional, Set, Json, Database
 from redis import Redis, ConnectionError
 from rq import Queue
-from ...constants import TaskType, StructureType, StructureStatus, ModelType, AdditiveType
+from .marshal import PreparingDocumentSchema
+from ...constants import TaskType, StructureType, StructureStatus, ModelType
 
 
 def filter_kwargs(kwargs):
@@ -65,23 +66,10 @@ class DBModel:
 
             @property
             def example(self):
-                return self._get_example()
-
-            def _get_example(self, skip_models=False):
-                additives = Additive.get_additives_dict('name')
                 example = self._example.copy()
-
-                alist = []
-                for a in example['additives']:
-                    ai = a['name']
-                    if ai in additives:
-                        alist.append(dict(amount=a['amount'], **additives[ai]))
-
-                models = [dict(type=self.type, model=self.id, name=self.name,
-                               destinations=self.destinations)] if not skip_models else []
-
-                example.update(models=models, type=StructureType(example['type']), status=StructureStatus.CLEAR,
-                               structure=1, additives=alist)
+                example.update(models=self, structure=1)
+                example = PreparingDocumentSchema().load(example)
+                example['status'] = StructureStatus.CLEAR
                 return example
 
             @classmethod
@@ -105,7 +93,7 @@ class DBModel:
                 except ValueError:
                     raise ConnectionError
 
-                return d.id, q.enqueue_call('redis_worker.run', kwargs={'structures': structures, 'model': self.name},
+                return d.id, q.enqueue_call('CIMM.rq.run', kwargs={'structures': structures, 'model': self.name},
                                             result_ttl=result_ttl,
                                             meta={'task': task_id, 'model': self.id, 'destination': d.id}).id
 
@@ -125,26 +113,6 @@ class DBModel:
                 r = Redis(host=self.host, port=self.port, password=self.password)
                 r.ping()
                 return Queue(connection=r, name=self.name, default_timeout=job_timeout)
-
-        class Additive(db.Entity):
-            _table_ = (schema, 'additive')
-            id = PrimaryKey(int, auto=True)
-            _type = Required(int, column='type')
-            name = Required(str, unique=True)
-            structure = Optional(str)
-
-            def __init__(self, **kwargs):
-                _type = kwargs.pop('type', AdditiveType.SOLVENT).value
-                super().__init__(_type=_type, **kwargs)
-
-            @property
-            def type(self):
-                return AdditiveType(self._type)
-
-            @classmethod
-            def get_additives_dict(cls, key='id'):
-                return {getattr(a, key): dict(additive=a.id, name=a.name, structure=a.structure, type=a.type)
-                        for a in cls.select()}
 
         class Task(db.Entity):
             _table_ = (schema, 'task')
@@ -178,7 +146,3 @@ def __getattr__(schema):
 
 def get_schema(schema, db=None):
     return DBModel.get_schema(schema, db)
-
-
-def list_schemas():
-    return DBModel.list_schemas()

@@ -21,15 +21,15 @@
 from datetime import datetime
 from flask import current_app
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
-from flask_login import current_user
+from flask_login import current_user, login_required
 from pickle import dumps
 from pony.orm import db_session
 from redis import ConnectionError
 from uuid import uuid4
 from werkzeug.routing import BaseConverter, ValidationError
+from ..decorators import pass_db_redis
 from ..marshal import DocumentSchema, PostResponseSchema
-from ..utils import pass_db_redis
-from ...utils import authenticate, abort
+from ...utils import abort
 from ....constants import TaskType, TaskStatus, StructureStatus, StructureType, ModelType
 
 
@@ -44,8 +44,8 @@ class TaskTypeConverter(BaseConverter):
 @doc(params={'_type': {'description': 'Task type ID: ' + ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType),
                        'type': 'integer'}})
 class CreateTask(MethodResource):
-    decorators = [authenticate, db_session]
-
+    @db_session
+    @login_required
     @use_kwargs(DocumentSchema(many=True), locations=('json',))
     @marshal_with(PostResponseSchema, 201, 'validation task created')
     @marshal_with(None, 401, 'user not authenticated')
@@ -69,14 +69,14 @@ class CreateTask(MethodResource):
 
         task_id = str(uuid4())
         try:
-            job_id = preparer.create_job(data, task_id, current_app.config['REDIS_JOB_TIMEOUT'],
-                                         current_app.config['REDIS_TTL'])
+            job_id = preparer.create_job(data, task_id, current_app.config.get('REDIS_JOB_TIMEOUT', 3600),
+                                         current_app.config.get('REDIS_TTL', 86400))
         except (ConnectionError, ValueError):
             abort(500, 'modeling server error')
 
-        redis.set(task_id, dumps({'chunks': {}, 'jobs': [(preparer.id, *job_id)], 'user': current_user.id,
+        redis.set(task_id, dumps({'chunks': {}, 'jobs': [(preparer.id, *job_id)], 'user': current_user.get_id(),
                                   'type': _type, 'status': TaskStatus.PREPARED}),
-                  ex=current_app.config['REDIS_TTL'])
+                  ex=current_app.config.get('REDIS_TTL', 86400))
 
         return dict(task=task_id, status=TaskStatus.PREPARING, type=_type, date=datetime.utcnow(),
                     user=current_user), 201

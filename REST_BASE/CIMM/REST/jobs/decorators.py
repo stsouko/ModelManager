@@ -29,8 +29,9 @@ def pass_db_redis(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         db = get_schema(current_app.config['JOBS_DB_SCHEMA'])
-        redis = Redis(host=current_app.config['REDIS_HOST'], port=current_app.config['REDIS_PORT'],
-                      password=current_app.config['REDIS_PASSWORD'])
+        redis = Redis(host=current_app.config.get('REDIS_HOST', 'localhost'),
+                      port=current_app.config.get('REDIS_PORT', 6379),
+                      password=current_app.config.get('REDIS_PASSWORD'))
         try:
             redis.ping()
         except ConnectionError:

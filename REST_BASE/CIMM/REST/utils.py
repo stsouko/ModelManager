@@ -18,20 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask_login import current_user
-from functools import wraps
 from werkzeug.exceptions import HTTPException, Aborter
-
-
-def authenticate(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if current_user.is_authenticated or True:
-            return f(*args, **kwargs)
-
-        abort(401, 'not authenticated')
-
-    return wrapper
 
 
 def abort(http_status_code, message=None, **kwargs):

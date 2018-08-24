@@ -159,6 +159,14 @@ class DocumentSchema(Schema):
     _data_td = dict(description='string containing MRV or MDL RDF|SDF structure')
     data = StructureField(required=True, validate=Length(2), **_data_td)
 
+    @post_load
+    def _set_type(self, data):
+        if 'data' in data:
+            data['type'] = StructureType.REACTION if isinstance(data['data'], ReactionContainer) else \
+                StructureType.MOLECULE
+            data['status'] = StructureStatus.RAW
+        return data
+
 
 class PreparingDocumentSchema(DocumentSchema):
     structure = Integer(required=True, validate=Range(1),
@@ -172,6 +180,7 @@ class PreparingDocumentSchema(DocumentSchema):
                         description='type of validated structure. possible one of the following: ' +
                                     ', '.join('{0.value} - {0.name}'.format(x) for x in StructureType))
     data = StructureField(validate=Length(2), **DocumentSchema._data_td)
+    models = Nested(ModelSchema, many=True, missing=list, default=list)
 
 
 class ModelingDocumentSchema(PreparingDocumentSchema):
