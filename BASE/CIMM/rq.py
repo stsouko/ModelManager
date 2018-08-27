@@ -18,14 +18,19 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools.containers import ReactionContainer, CGRContainer, MoleculeContainer
+from CGRtools.files import RDFread, MRVread, SDFread, SMILESread
+from io import StringIO, BytesIO
+from re import split
+from requests import get
 from shutil import rmtree
 from tempfile import mkdtemp
 from traceback import format_exc
 from warnings import warn
+from .additives import Additive
 from .config import WORKPATH
-from .constants import ModelType, ResultType
+from .constants import ModelType, ResultType, StructureStatus, StructureType
 from .models import loader
-from .utils import download_data
 
 
 def run(structures, model):
@@ -86,7 +91,106 @@ def run(structures, model):
 
 
 def convert(structures, model):
-    tmp = download_data(structures)
-    if not tmp:
+    """
+    $DTYPE additive.amount.1
+    $DATUM name = .5
+    $DTYPE temperature
+    $DATUM 40
+    $DTYPE pressure
+    $DATUM 0.9
+    $DTYPE additive.2
+    $DATUM name
+    $DTYPE amount.2
+    $DATUM 0.5
+    """
+    r = get(structures)
+    if r.status_code != 200:
+        raise Exception('File download failed')
+
+    if b'MChemicalStruct' in r.content:
+        with BytesIO(r.content) as f, MRVread(f) as r:
+            data = r.read()
+    else:
+        with StringIO(r.text) as f:
+            if b'$RXN' in r.content:
+                with RDFread(f) as r:
+                    data = r.read()
+            elif b'V2000' in r.content or b'V3000' in r.content:
+                with SDFread(f) as r:
+                    data = r.read()
+            else:
+                with SMILESread(f) as r:
+                    data = r.read()
+
+    out = []
+    for n, s in enumerate(data, start=1):
+        if isinstance(s, ReactionContainer):
+            _type = StructureType.REACTION
+        elif isinstance(s, MoleculeContainer) and not isinstance(s, CGRContainer):  # MOLECULES AND MIXTURES
+            _type = StructureType.MOLECULE
+        else:
+            continue
+
+        _meta = s.meta.copy()
+        s.meta.clear()
+
+        tmp_add, found_add = {}, {}
+        for k, v in _meta.items():
+            if k.startswith('additive.amount.'):
+                key = k[16:]
+                if key and key not in found_add:
+                    try:
+                        a_name, *_, a_amount = split('[:=]+', v)
+                        _v = float(a_amount.replace('%', '')) / 100 if '%' in a_amount else float(a_amount)
+                        found_add[key] = Additive(amount=_v, name=a_name.strip().lower())
+                    except (ValueError, KeyError):
+                        continue
+            elif k.startswith('additive.'):
+                key = k[9:]
+                if key and key not in found_add:
+                    if key in tmp_add:
+                        if 'name' in tmp_add[key]:
+                            continue
+                        tmp_add[key]['name'] = v.lower()
+                    else:
+                        tmp_add[key] = {'name': v.lower()}
+
+            elif k.startswith('amount.'):
+                key = k[7:]
+                if key and key not in found_add:
+                    try:
+                        _v = float(v.replace('%', '')) / 100 if '%' in v else float(v)
+                    except ValueError:
+                        continue
+                    else:
+                        if key in tmp_add:
+                            if 'amount' in tmp_add[key]:
+                                continue
+                            tmp_add[key]['amount'] = _v
+                        else:
+                            tmp_add[key] = {'amount': _v}
+
+        for k, v in tmp_add.items():
+            try:
+                found_add[k] = Additive(*v)
+            except (ValueError, KeyError):
+                continue
+
+        tmp = _meta.get('pressure', 1)
+        try:
+            pressure = float(tmp)
+        except ValueError:
+            pressure = 1
+
+        tmp = _meta.get('temperature', 298)
+        try:
+            temperature = float(tmp)
+        except ValueError:
+            temperature = 298
+
+        out.append(dict(structure=n, data=s, status=StructureStatus.RAW, type=_type, additives=found_add,
+                        pressure=pressure, temperature=temperature))
+
+    if not out:
         raise Exception('File converter failed')
-    return run(tmp, model)
+    return run(out, model)

@@ -108,8 +108,10 @@ class ModelLoader:
                     it = zip(*tmp)
                 elif isinstance(tmp, list):
                     it = ((x, None) for x in tmp)
-                else:
+                elif tmp:
                     it = [(tmp, None)]
+                else:
+                    return
 
                 for r, t in it:
                     with StringIO() as f:

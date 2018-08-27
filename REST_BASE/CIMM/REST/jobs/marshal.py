@@ -24,7 +24,7 @@ from enum import Enum
 from io import StringIO, BytesIO
 from marshmallow import Schema, pre_dump, post_load, ValidationError
 from marshmallow.fields import String, Integer, Float, Nested, Boolean, DateTime, Method
-from marshmallow.validate import Range, Length
+from marshmallow.validate import Range
 from ...additives import Additive
 from ...constants import TaskStatus, TaskType, AdditiveType, StructureType, StructureStatus, ModelType, ResultType
 

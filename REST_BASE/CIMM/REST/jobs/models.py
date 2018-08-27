@@ -80,7 +80,7 @@ class DBModel:
             def destinations(self):
                 return list(self._destinations)
 
-            def create_job(self, structures, task_id, job_timeout=3600, result_ttl=86400):
+            def create_job(self, structures, task_id, job_timeout=3600, result_ttl=86400, runner='CIMM.rq.run'):
                 qs = []
                 for d in self._destinations:
                     try:
@@ -93,7 +93,7 @@ class DBModel:
                 except ValueError:
                     raise ConnectionError
 
-                return d.id, q.enqueue_call('CIMM.rq.run', kwargs={'structures': structures, 'model': self.name},
+                return d.id, q.enqueue_call(runner, kwargs={'structures': structures, 'model': self.name},
                                             result_ttl=result_ttl,
                                             meta={'task': task_id, 'model': self.id, 'destination': d.id}).id
 

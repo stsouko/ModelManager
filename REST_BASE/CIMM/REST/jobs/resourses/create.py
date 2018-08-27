@@ -18,19 +18,19 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from datetime import datetime
-from flask import current_app
+from flask import send_from_directory, current_app, url_for
+from flask.views import MethodView
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
-from flask_login import current_user, login_required
-from pickle import dumps
+from flask_login import login_required
+from marshmallow.fields import String, Url, Field
+from pathlib import Path
 from pony.orm import db_session
-from redis import ConnectionError
 from uuid import uuid4
 from werkzeug.routing import BaseConverter, ValidationError
-from ..decorators import pass_db_redis
+from ..decorators import pass_db, pass_redis, create_job
 from ..marshal import DocumentSchema, PostResponseSchema
 from ...utils import abort
-from ....constants import TaskType, TaskStatus, StructureStatus, StructureType, ModelType
+from ....constants import TaskType, ModelType
 
 
 class TaskTypeConverter(BaseConverter):
@@ -51,8 +51,10 @@ class CreateTask(MethodResource):
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 422, 'invalid structure data')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @pass_db_redis
-    def post(self, *data, _type, db, redis):
+    @pass_redis
+    @create_job
+    @pass_db
+    def post(self, *data, _type, db):
         """
         create new task
         """
@@ -67,16 +69,80 @@ class CreateTask(MethodResource):
         for s, d in enumerate(data, start=1):
             d['structure'] = s
 
-        task_id = str(uuid4())
+        return data, _type, preparer, 201
+
+
+class UploadTask(MethodResource):
+    @db_session
+    @login_required
+    @use_kwargs({'file_path': String(attribute='file.path'), 'file_url': Url(attribute='file.url'),
+                 'structures': Field()}, locations=('files', ))
+    @marshal_with(PostResponseSchema, 201, 'validation task created')
+    @marshal_with(None, 400, 'structure file required')
+    @marshal_with(None, 401, 'user not authenticated')
+    @marshal_with(None, 500, 'modeling/dispatcher server error')
+    @pass_redis
+    @create_job
+    @pass_db
+    def post(self, db, structures=None, file_url=None, file_path=None):
+        """
+        Structures file upload
+
+        Create validation task from uploaded structures file
+        Need for batch modeling mode.
+        Any chemical structure formats convertable with Chemaxon JChem can be passed.
+
+        conditions in files should be present in next key-value format:
+        additive.amount.1 --> string = float [possible delimiters: :, :=, =]
+        temperature --> float
+        pressure --> float
+        additive.2 --> string
+        amount.2 --> float
+        where .1[.2] is index of additive. possible set multiple additives.
+
+        example [RDF]:
+        $DTYPE additive.amount.1
+        $DATUM water = .4
+        $DTYPE temperature
+        $DATUM 298
+        $DTYPE pressure
+        $DATUM 0.9
+        $DTYPE additive.2
+        $DATUM DMSO
+        $DTYPE amount.2
+        $DATUM 0.6
+
+        parsed as:
+        temperature = 298
+        pressure = 0.9
+        additives = [{"name": "water", "amount": 0.4, "type": x, "additive": y1}, \
+                     {"name": "DMSO", "amount": 0.6, "type": x, "additive": y2}]
+        where "type" and "additive" obtained from DataBase by name
+
+        see task/create doc about acceptable conditions values and additives types and response structure.
+        """
         try:
-            job_id = preparer.create_job(data, task_id, current_app.config.get('REDIS_JOB_TIMEOUT', 3600),
-                                         current_app.config.get('REDIS_TTL', 86400))
-        except (ConnectionError, ValueError):
-            abort(500, 'modeling server error')
+            preparer = db.Model.get_by_type(ModelType.PREPARER)[0]
+        except IndexError:
+            abort(500, 'dispatcher server error')
 
-        redis.set(task_id, dumps({'chunks': {}, 'jobs': [(preparer.id, *job_id)], 'user': current_user.get_id(),
-                                  'type': _type, 'status': TaskStatus.PREPARED}),
-                  ex=current_app.config.get('REDIS_TTL', 86400))
+        if file_url is None:  # smart frontend
+            upload_root = Path(current_app.config['JOBS_UPLOAD'])
+            if file_path:  # NGINX upload
+                file_name = Path(file_path).name
+                if (upload_root / file_name).exists():
+                    file_url = url_for('.batch', file=file_name, _external=True)
+            elif structures:  # flask
+                file_name = str(uuid4())
+                structures.save((upload_root / file_name).as_posix())
+                file_url = url_for('.batch', file=file_name, _external=True)
 
-        return dict(task=task_id, status=TaskStatus.PREPARING, type=_type, date=datetime.utcnow(),
-                    user=current_user), 201
+            if file_url is None:
+                abort(400, message='structure file required')
+
+        return file_url, TaskType.MODELING, preparer, 201, 'convert'
+
+
+class BatchDownload(MethodView):
+    def get(self, file):
+        return send_from_directory(directory=current_app.config['JOBS_UPLOAD'], filename=file)

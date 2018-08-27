@@ -23,12 +23,13 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from flask import Blueprint
 from flask_apispec import FlaskApiSpec
 from .models import get_schema
-from .resourses import CreateTask
+from .resourses import *
 from .resourses.create import TaskTypeConverter
 
 
 docs = FlaskApiSpec()
 docs.register(CreateTask, endpoint='create', blueprint='JobsAPI')
+docs.register(UploadTask, endpoint='upload', blueprint='JobsAPI')
 
 blueprint = Blueprint('JobsAPI', __name__)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
@@ -37,6 +38,8 @@ blueprint.record_once(lambda state: state.app.config.update(APISPEC_SPEC=APISpec
                                                                                  plugins=(MarshmallowPlugin(),))))
 
 blueprint.add_url_rule('/create/<TaskType:_type>', endpoint='create', view_func=CreateTask.as_view('create'))
+blueprint.add_url_rule('/upload', endpoint='upload', view_func=UploadTask.as_view('upload'))
+blueprint.add_url_rule('/batch/<string:file>', view_func=BatchDownload.as_view('batch'))
 
 # DON'T MOVE. docs.init_app should be after all routes definition
 blueprint.record_once(lambda state: docs.init_app(state.app))
