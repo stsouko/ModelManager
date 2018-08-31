@@ -27,10 +27,10 @@ from pathlib import Path
 from pony.orm import db_session
 from uuid import uuid4
 from werkzeug.routing import BaseConverter, ValidationError
-from ..decorators import pass_db, pass_redis, create_job
+from .common import JobMixin
 from ..marshal import DocumentSchema, PostResponseSchema
 from ...utils import abort
-from ....constants import TaskType, ModelType
+from ....constants import TaskType, ModelType, TaskStatus
 
 
 class TaskTypeConverter(BaseConverter):
@@ -43,7 +43,7 @@ class TaskTypeConverter(BaseConverter):
 
 @doc(params={'_type': {'description': 'Task type ID: ' + ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType),
                        'type': 'integer'}})
-class CreateTask(MethodResource):
+class CreateTask(MethodResource, JobMixin):
     @db_session
     @login_required
     @use_kwargs(DocumentSchema(many=True), locations=('json',))
@@ -51,15 +51,12 @@ class CreateTask(MethodResource):
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 422, 'invalid structure data')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @pass_redis
-    @create_job
-    @pass_db
-    def post(self, *data, _type, db):
+    def post(self, *data, _type):
         """
         create new task
         """
         try:
-            preparer = db.Model.get_by_type(ModelType.PREPARER)[0]
+            preparer = self.models.get_by_type(ModelType.PREPARER)[0]
         except IndexError:
             abort(500, 'dispatcher server error')
 
@@ -69,10 +66,15 @@ class CreateTask(MethodResource):
         for s, d in enumerate(data, start=1):
             d['structure'] = s
 
-        return data, _type, preparer, 201
+        try:
+            job_id, task_id = self.enqueue(preparer, data)
+        except (ConnectionError, ValueError):
+            abort(500, 'modeling server error')
+
+        return self.save(task_id, _type, TaskStatus.PREPARING, [job_id]), 201
 
 
-class UploadTask(MethodResource):
+class UploadTask(MethodResource, JobMixin):
     @db_session
     @login_required
     @use_kwargs({'file_path': String(attribute='file.path'), 'file_url': Url(attribute='file.url'),
@@ -81,10 +83,7 @@ class UploadTask(MethodResource):
     @marshal_with(None, 400, 'structure file required')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @pass_redis
-    @create_job
-    @pass_db
-    def post(self, db, structures=None, file_url=None, file_path=None):
+    def post(self, structures=None, file_url=None, file_path=None):
         """
         Structures file upload
 
@@ -122,7 +121,7 @@ class UploadTask(MethodResource):
         see task/create doc about acceptable conditions values and additives types and response structure.
         """
         try:
-            preparer = db.Model.get_by_type(ModelType.PREPARER)[0]
+            preparer = self.models.get_by_type(ModelType.PREPARER)[0]
         except IndexError:
             abort(500, 'dispatcher server error')
 
@@ -139,8 +138,12 @@ class UploadTask(MethodResource):
 
             if file_url is None:
                 abort(400, message='structure file required')
+        try:
+            job_id, task_id = self.enqueue(preparer, file_url, runner='convert')
+        except (ConnectionError, ValueError):
+            abort(500, 'modeling server error')
 
-        return file_url, TaskType.MODELING, preparer, 201, 'convert'
+        return self.save(task_id, TaskType.MODELING, TaskStatus.PREPARING, [job_id]), 201
 
 
 class BatchDownload(MethodView):

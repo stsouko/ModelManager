@@ -93,9 +93,9 @@ class DBModel:
                 except ValueError:
                     raise ConnectionError
 
-                return d.id, q.enqueue_call(runner, kwargs={'structures': structures, 'model': self.name},
-                                            result_ttl=result_ttl,
-                                            meta={'task': task_id, 'model': self.id, 'destination': d.id}).id
+                return self.id, d.id, q.enqueue_call(runner, kwargs={'structures': structures, 'model': self.name},
+                                                     result_ttl=result_ttl,
+                                                     meta={'task': task_id, 'model': self.id, 'destination': d.id}).id
 
         class Destination(db.Entity):
             _table_ = (schema, 'destination')
