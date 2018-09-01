@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2016-2018 Ramil Nugmanov <stsouko@live.ru>
-#  This file is part of ModelManager.
+#  This file is part of CIMM (ChemoInformatics Models Manager).
 #
-#  ModelManager is free software; you can redistribute it and/or modify
+#  CIMM is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU Affero General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -48,7 +48,7 @@ def run(structures, model):
     """
     def fail_prep(reason):
         for s in structures:
-            s['results'] = [dict(key='Modeling Failed', value=reason, type=ResultType.TEXT)]
+            s['results'] = [dict(result='Modeling Failed', data=reason, type=ResultType.TEXT)]
         return structures
 
     workpath = mkdtemp(dir=WORKPATH)

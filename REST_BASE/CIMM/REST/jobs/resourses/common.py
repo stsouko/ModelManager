@@ -18,6 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from collections import Counter
 from datetime import datetime
 from flask import current_app
 from flask_login import current_user
@@ -42,58 +43,145 @@ class JobMixin:
         return job_id, task_id
 
     def save(self, task_id, _type, status, jobs, data=None):
-        redis = self.redis
-        chunks = current_app.config.get('REDIS_CHUNK', 86400)
+        chunks = current_app.config.get('REDIS_CHUNK', 50)
         ex = current_app.config.get('REDIS_TTL', 86400)
         tmp = {}
         if data is not None:
             for x in range(0, len(data), chunks):  # store structures in chunks.
                 _id = str(uuid4())
                 chunk = {s['structure']: s for s in data[x: x + chunks]}
-                redis.set(_id, dumps(chunk), ex=ex)
+                self.redis.set(_id, dumps(chunk), ex=ex)
                 for s in chunk:
                     tmp[s] = _id
 
-        redis.set(task_id, dumps({'chunks': tmp, 'jobs': jobs, 'user': current_user.get_id(),
-                                  'type': _type,
-                                  'status': TaskStatus.PREPARED if status == TaskStatus.PREPARING else
-                                            TaskStatus.PROCESSED}), ex=ex)
+        self.redis.set(task_id, dumps({'chunks': tmp, 'jobs': jobs, 'user': current_user.get_id(),
+                                       'type': _type, 'task': task_id,
+                                       'status': TaskStatus.PREPARED if status == TaskStatus.PREPARING else
+                                                 TaskStatus.PROCESSED}), ex=ex)
 
-        return {'task': task_id, 'status': status, 'type': _type, 'date': datetime.utcnow(), 'user': current_user}
+        return {'task': task_id, 'status': status, 'type': _type, 'date': datetime.utcnow(),
+                'user': current_user.get_id()}
 
     @property
     def redis(self):
-        redis = Redis(host=current_app.config.get('REDIS_HOST', 'localhost'),
-                      port=current_app.config.get('REDIS_PORT', 6379),
-                      password=current_app.config.get('REDIS_PASSWORD'))
-        try:
-            redis.ping()
-        except ConnectionError:
-            abort(500, 'dispatcher server error')
-        return redis
+        if self.__redis_cache is None:
+            redis = Redis(host=current_app.config.get('REDIS_HOST', 'localhost'),
+                          port=current_app.config.get('REDIS_PORT', 6379),
+                          password=current_app.config.get('REDIS_PASSWORD'))
+            try:
+                redis.ping()
+            except ConnectionError:
+                abort(500, 'dispatcher server error')
+            self.__redis_cache = redis
+
+        return self.__redis_cache
 
     @property
     def models(self):
-        return get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
+        if self.__models_cache is None:
+            self.__models_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
+        return self.__models_cache
+
+    def fetch_meta(self, task, status):
+        result = self.__fetch(task, status)
+        chunks = result['chunks']
+        return {'structures': len(chunks), 'pages': len(set(chunks.values())), **result}
 
     def fetch(self, task, status, page=None):
-        job = self.redis.get(task)
+        result = self.__fetch(task, status)
 
-        if job is None:
+        loaded_chunks = {}
+        chunks = result['chunks']
+        if page is None:
+            tmp = []
+            for s_id in sorted(chunks):
+                ch_id = chunks[s_id]
+                ch = loaded_chunks.get(ch_id) or loaded_chunks.setdefault(ch_id, loads(self.redis.get(ch_id)))
+                tmp.append(ch[s_id])
+        else:
+            chunks = sorted(set(chunks.values()))
+            if page > len(chunks):
+                abort(404, message='page not found')
+
+            ch = loads(self.redis.get(chunks[page - 1]))
+            tmp = [ch[s_id] for s_id in sorted(ch)]
+
+        for s in tmp:
+            for r in s['models']:
+                r['model'] = self.models[r['model']]
+        return {'structures': tmp, **result}
+
+    def __fetch(self, task_id, status):
+        task = self.redis.get(task_id)
+
+        if task is None:
             abort(404, message='invalid task id. perhaps this task has already been removed')
 
-        result = loads(job)
+        task = loads(task)
 
-        if result['jobs']:
-            abort(512, message='PROCESSING.Task not ready')
+        if task['status'] != status:
+            abort(406, message='task status is invalid. task status is [%s]' % task['status'].name)
 
-        if result['status'] != status:
-            abort(406, message='task status is invalid. task status is [%s]' % result['status'].name)
-
-        if result['user'] != current_user.get_id():
+        if task['user'] != current_user.get_id():
             abort(403, message='user access deny. you do not have permission to this task')
 
-        return result
+        if task['jobs']:
+            jobs = [self.models.fetch_job(x) for x in task['jobs']]
+            if any(x.is_queued or x.is_started for x in jobs):
+                abort(512, message='PROCESSING.Task not ready')
+
+            ended_at = None
+            flag = True
+            for job in jobs:
+                if ended_at is None:
+                    ended_at = job.ended_at
+                elif job.ended_at > ended_at:
+                    ended_at = job.ended_at
+
+                if job.is_finished:
+                    self.__update_task(task['chunks'], job)
+                    job.delete()
+                else:
+                    flag = False
+
+            task['jobs'] = []
+            task['date'] = ended_at
+            if flag:
+                self.redis.set(task_id, dumps(task), ex=current_app.config.get('REDIS_TTL', 86400))
+        return task
+
+    def __update_task(self, chunks, job):
+        chunk_size = current_app.config.get('REDIS_CHUNK', 50)
+        partial_chunk = next((c_id for c_id, fill in Counter(chunks.values()).items() if fill < chunk_size), None)
+        model = job.meta['model']
+
+        loaded_chunks = {}
+        for s in job.result:
+            results = dict(results=s.pop('results', []), model=model)
+            s_id = s['structure']
+            if s_id in chunks:
+                c_id = chunks[s_id]
+                ch = loaded_chunks.get(c_id) or loaded_chunks.setdefault(c_id, loads(self.redis.get(c_id)))
+                ch[s_id]['models'].append(results)
+            else:
+                if partial_chunk:
+                    ch = loaded_chunks.get(partial_chunk) or \
+                         loaded_chunks.setdefault(partial_chunk, loads(self.redis.get(partial_chunk)))
+                else:
+                    partial_chunk = str(uuid4())
+                    ch = loaded_chunks[partial_chunk] = {}
+
+                s['models'] = [results]
+                ch[s_id] = s
+                chunks[s_id] = partial_chunk
+
+                if len(ch) == chunk_size:
+                    partial_chunk = None
+
+        for c_id, chunk in loaded_chunks.items():
+            self.redis.set(c_id, dumps(chunk), ex=current_app.config.get('REDIS_TTL', 86400))
+
+    __redis_cache = __models_cache = None
 
 
 def dynamic_docstring(*sub):

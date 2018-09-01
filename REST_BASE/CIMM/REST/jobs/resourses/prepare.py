@@ -26,18 +26,20 @@ from marshmallow.validate import Range
 from pony.orm import db_session
 from uuid import uuid4
 from .common import dynamic_docstring, JobMixin
-from ..marshal import PreparingDocumentSchema, PostResponseSchema
+from ..marshal import PreparingDocumentSchema, PostResponseSchema, GetResponseSchema
 from ...utils import abort
 from ....constants import TaskType, ModelType, TaskStatus, StructureStatus, StructureType, ResultType
 
 
 @doc(params={'task': {'description': 'Task ID', 'type': 'string'}})
 class PrepareTask(MethodResource, JobMixin):
+    @db_session
+    @login_required
     @use_kwargs({'page': Integer(validate=Range(1), description='results pagination')}, locations=('query',))
-    @marshal_with(PostResponseSchema, 200, 'validation task')
+    @marshal_with(GetResponseSchema, 200, 'validation task')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
-    @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
+    @marshal_with(None, 404, 'invalid task id or page not found')
     @marshal_with(None, 406, 'task status is invalid. only validation tasks acceptable')
     @marshal_with(None, 422, 'page must be a positive integer or None')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
@@ -67,9 +69,7 @@ class PrepareTask(MethodResource, JobMixin):
         type: data type = {4.value} [{4.name}] - plain text information
         value: string - body
         """
-        print(task, page)
-        return dict(task=task, date=ended_at, status=job['status'], type=job['type'], user=current_user,
-                    structures=job['structures']), 200
+        return self.fetch(task, TaskStatus.PREPARED, page), 200
 
     @db_session
     @login_required
@@ -110,11 +110,12 @@ class PrepareTask(MethodResource, JobMixin):
 
         see also task/create doc.
         """
-        prepared = {s['structure']: s for s in job['structures']}
-        tmp = {x['structure']: x for x in data} if isinstance(data, list) else {data['structure']: data}
+        if not data:
+            abort(422, message='invalid data')
 
-        if 0 in tmp:
-            abort(400, message='invalid structure data')
+        task = self.fetch(task, TaskStatus.PREPARED)
+        prepared = {s['structure']: s for s in task['structures']}
+        tmp = {x['structure']: x for x in data}
 
         preparer = Model.get_preparer_model()
         additives = Additive.get_additives_dict()

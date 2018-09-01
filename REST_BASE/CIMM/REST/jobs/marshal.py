@@ -135,33 +135,25 @@ class AdditiveSchema(Schema):
 class ModelingResultSchema(Schema):
     type = IntEnumField(ResultType, description='type of result. possible one of the following: ' +
                                                 ', '.join('{0.value} - {0.name}'.format(x) for x in ResultType))
-    key = String(description='key of result. key is a header or title or uid of result')
-    value = Method('dump', dump_only=True, description='result data')
+    result = String(description='key of result. key is a header or title or uid of result')
+    data = Method('dump_result', dump_only=True, description='result data')
 
-    def dump(self, obj):
-        return obj  # todo: extend
+    def dump_result(self, obj):
+        return obj['data']  # todo: extend
 
 
 class ModelSchema(Schema):
-    model = Integer(required=True, validate=Range(1),
+    model = Integer(required=True, validate=Range(1), attribute='model.id',
                     description='id of model. need for selecting models which will be applied to structure')
-    name = String(dump_only=True, description='name of model')
-    type = IntEnumField(ModelType, dump_only=True,
-                        description='type of model. possible one of the following: ' +
-                                    ', '.join('{0.value} - {0.name}'.format(x) for x in ModelType))
-    description = String(dump_only=True, description='description of model')
+    name = String(dump_only=True, description='name of model', attribute='model.name')
+    type = Integer(dump_only=True, attribute='model._type',
+                   description='type of model. possible one of the following: ' +
+                               ', '.join('{0.value} - {0.name}'.format(x) for x in ModelType))
+    description = String(dump_only=True, description='description of model', attribute='model.description')
     results = Nested(ModelingResultSchema, many=True, dump_only=True)
 
 
-class DocumentSchema(Schema):
-    temperature = Float(missing=298, validate=Range(100, 600), description='temperature of media in Kelvin')
-    pressure = Float(missing=1, validate=Range(0, 100000), description='pressure of media in bars')
-    description = Nested(DescriptionSchema, many=True, missing=list, default=list)
-    additives = Nested(AdditiveSchema, many=True, missing=list, default=list)
-
-    _data_td = dict(description='string containing MRV or MDL RDF|SDF structure')
-    data = StructureField(required=True, **_data_td)
-
+class DocumentMixin:
     @post_load
     def _set_type(self, data):
         if 'data' in data:
@@ -171,7 +163,21 @@ class DocumentSchema(Schema):
         return data
 
 
-class PreparingDocumentSchema(DocumentSchema):
+class DocumentSchema(Schema, DocumentMixin):
+    temperature = Float(missing=298, validate=Range(100, 600), description='temperature of media in Kelvin')
+    pressure = Float(missing=1, validate=Range(0, 100000), description='pressure of media in bars')
+    description = Nested(DescriptionSchema, many=True, missing=list, default=list)
+    additives = Nested(AdditiveSchema, many=True, missing=list, default=list)
+    data = StructureField(required=True, description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
+
+
+class PreparingDocumentSchema(Schema, DocumentMixin):
+    temperature = Float(validate=Range(100, 600), description='temperature of media in Kelvin')
+    pressure = Float(validate=Range(0, 100000), description='pressure of media in bars')
+    description = Nested(DescriptionSchema, many=True, default=list)
+    additives = Nested(AdditiveSchema, many=True, default=list)
+    data = StructureField(description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
+
     structure = Integer(required=True, validate=Range(1),
                         description='structure id for mapping of changes to records in previously validated document')
     todelete = Boolean(load_only=True,
@@ -182,12 +188,12 @@ class PreparingDocumentSchema(DocumentSchema):
     type = IntEnumField(StructureType, dump_only=True,
                         description='type of validated structure. possible one of the following: ' +
                                     ', '.join('{0.value} - {0.name}'.format(x) for x in StructureType))
-    data = StructureField(**DocumentSchema._data_td)
-    models = Nested(ModelSchema, many=True, missing=list, default=list)
+
+    models = Nested(ModelSchema, many=True, default=list)
 
 
 class ModelingDocumentSchema(PreparingDocumentSchema):
-    data = StructureField(dump_only=True, **DocumentSchema._data_td)
+    data = StructureField(dump_only=True, description='string containing MRV structure')
 
 
 class PostResponseSchema(Schema):
@@ -197,4 +203,8 @@ class PostResponseSchema(Schema):
     type = IntEnumField(TaskType, description='type of job. possible one of the following: ' +
                                               ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType))
     date = DateTime(format='iso8601')
-    user = Integer(attribute='id', description='job owner id')
+    user = Integer(description='job owner id')
+
+
+class GetResponseSchema(PostResponseSchema):
+    structures = Nested(PreparingDocumentSchema, many=True, default=list)

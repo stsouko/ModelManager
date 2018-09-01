@@ -97,6 +97,22 @@ class DBModel:
                                                      result_ttl=result_ttl,
                                                      meta={'task': task_id, 'model': self.id, 'destination': d.id}).id
 
+            @classmethod
+            def fetch_job(cls, job_id):
+                m_id, d_id, q_id = job_id
+                model = cls.get(id=m_id)
+                if model is None:
+                    raise KeyError('invalid model')
+                dest = Destination.get(id=d_id)
+                if dest is None:
+                    raise KeyError('invalid destination')
+
+                queue = dest.get_queue()
+                job = queue.fetch_job(q_id)
+                if job is None:
+                    raise KeyError('invalid job')
+                return job
+
         class Destination(db.Entity):
             _table_ = (schema, 'destination')
             id = PrimaryKey(int, auto=True)

@@ -28,11 +28,11 @@ from .resourses.create import TaskTypeConverter
 
 
 docs = FlaskApiSpec()
-docs.register(CreateTask, endpoint='create', blueprint='JobsAPI')
-docs.register(UploadTask, endpoint='upload', blueprint='JobsAPI')
-docs.register(PrepareTask, endpoint='prepare', blueprint='JobsAPI')
+docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
+docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
+docs.register(PrepareTask, endpoint='prepare', blueprint='CIMM_JobsAPI')
 
-blueprint = Blueprint('JobsAPI', __name__)
+blueprint = Blueprint('CIMM_JobsAPI', __name__)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
 blueprint.record_once(lambda state: state.app.config.update(APISPEC_SPEC=APISpec(title='Jobs API', version='1.0.0',
                                                                                  openapi_version='2.0',

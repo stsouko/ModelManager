@@ -40,6 +40,6 @@ def _scan_apis():
         if module_info.ispkg:
             module = import_module(f'{__package__}.{module_info.name}')
             if hasattr(module, 'docs') and hasattr(module, 'blueprint'):
-                apis[module.blueprint.name] = module_info.name
+                apis[module.blueprint.name[5:]] = module_info.name
 
     return apis
