@@ -44,7 +44,7 @@ class PrepareTask(MethodResource, JobMixin):
     @marshal_with(None, 422, 'page must be a positive integer or None')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
     @marshal_with(None, 512, 'task not ready')
-    @dynamic_docstring(ModelType.PREPARER, StructureStatus.CLEAR, StructureStatus.RAW, StructureStatus.HAS_ERROR,
+    @dynamic_docstring(ModelType.PREPARER, StructureStatus.CLEAN, StructureStatus.RAW, StructureStatus.HAS_ERROR,
                        ResultType.TEXT, StructureType.REACTION, StructureType.MOLECULE)
     def get(self, task, page=None):
         """
@@ -82,8 +82,7 @@ class PrepareTask(MethodResource, JobMixin):
     @marshal_with(None, 422, 'invalid structure data')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
     @marshal_with(None, 512, 'task not ready')
-    @dynamic_docstring(StructureStatus.CLEAR, StructureType.REACTION, ModelType.REACTION_MODELING,
-                       StructureType.MOLECULE, ModelType.MOLECULE_MODELING, StructureStatus.HAS_ERROR)
+    @dynamic_docstring(StructureStatus.HAS_ERROR)
     def post(self, *data, task):
         """
         Revalidate task structures and conditions
@@ -92,81 +91,74 @@ class PrepareTask(MethodResource, JobMixin):
         send only changed data and structure id's. e.g. if user changed only temperature in structure 4 json should be
         {{"temperature": new_value, "structure": 4}} or in  list [{{"temperature": new_value, "structure": 4}}]
 
-        unchanged data server kept as is. except structures with status {5.value} [{5.name}].
+        unchanged data server kept as is. except structures with status {0.value} [{0.name}].
         this structures if not modified will be removed from task.
-
         todelete field marks structure for delete.
+
         example json: [{{"structure": 5, "todetele": true}}]
-        structure with id 5 in task will be removed from list.
-
-        data field should be a string containing marvin document or cml or smiles/smirks.
-
-        models field usable if structure has status = {0.value} [{0.name}] and don't changed.
-        for structure type = {1.value} [{1.name}] acceptable only model types = {2.value} [{2.name}]
-        and vice versa for type = {3.value} [{3.name}] only model types = {4.value} [{4.name}].
-        only model id field required. e.g. [{{"models": [{{model: 1}}], "structure": 3}}]
-
-        for SEARCH type tasks models field unusable.
-
-        see also task/create doc.
+            structure with id 5 in task will be removed from list.
         """
         if not data:
             abort(422, message='invalid data')
 
         task = self.fetch(task, TaskStatus.PREPARED)
         prepared = {s['structure']: s for s in task['structures']}
-        tmp = {x['structure']: x for x in data}
+        for s in task['structures']:
+            for m in s['models']:
+                m['model'] = m['model'].id
 
-        preparer = Model.get_preparer_model()
-        additives = Additive.get_additives_dict()
-        models = Model.get_models_dict()
+        update = {x['structure']: x for x in data}
 
-        structures = []
+        try:
+            preparer = self.models.get_by_type(ModelType.PREPARER)[0]
+        except IndexError:
+            abort(500, 'dispatcher server error')
+
+        need_preparing = []
+        ready_modeling = []
         for s, ps in prepared.items():
-            if s not in tmp:
+            if s not in update:
                 if ps['status'] == StructureStatus.RAW:  # renew preparer model.
-                    ps['models'] = [preparer.copy()]
-                elif ps['status'] == StructureStatus.HAS_ERROR:
-                    continue
-            elif tmp[s]['todelete']:
-                continue
+                    del ps['models']
+                    need_preparing.append(ps)
+                elif ps['status'] == StructureStatus.CLEAN:
+                    ready_modeling.append(ps)
             else:
-                d = tmp[s]
+                d = update[s]
+                if d.get('todelete'):
+                    continue
 
-                if d['data']:
-                    ps['data'], ps['status'], ps['models'] = d['data'], StructureStatus.RAW, [preparer.copy()]
+                if 'additives' in d:
+                    ps['additives'] = d['additives']
+
+                if 'temperature' in d:
+                    ps['temperature'] = d['temperature']
+
+                if 'pressure' in d:
+                    ps['pressure'] = d['pressure']
+
+                if 'description' in d:
+                    ps['description'] = d['description']
+
+                if 'data' in d:
+                    del ps['models']
+                    ps['data'], ps['status'] = d['data'], StructureStatus.RAW
+                    need_preparing.append(ps)
                 elif ps['status'] == StructureStatus.RAW:  # renew preparer model.
-                    ps['models'] = [preparer.copy()]
-                elif ps['status'] == StructureStatus.CLEAR:
-                    if d['models'] is not None:
-                        ps['models'] = [models[m['model']].copy() for m in d['models'] if m['model'] in models and
-                                        models[m['model']]['type'].compatible(ps['type'], job['type'])]
-                    else:  # recheck models for existing
-                        ps['models'] = [models[m['model']].copy() for m in ps['models'] if m['model'] in models
-                                        if m['type'] != ModelType.PREPARER]
+                    del ps['models']
+                    need_preparing.append(ps)
+
+                elif ps['status'] == StructureStatus.CLEAN:
+                    ready_modeling.append(ps)
                 else:
                     continue
 
-                if d['additives'] is not None:
-                    ps['additives'] = additives_check(d['additives'], additives)
+        if not need_preparing:
+            abort(422, message='invalid structure data')
 
-                if d['temperature']:
-                    ps['temperature'] = d['temperature']
+        try:
+            job_id, task_id = self.enqueue(preparer, need_preparing)
+        except (ConnectionError, ValueError):
+            abort(500, 'modeling server error')
 
-                if d['pressure']:
-                    ps['pressure'] = d['pressure']
-
-                if d['description']:
-                    ps['description'] = d['description']
-
-            structures.append(ps)
-
-        if not structures:
-            abort(400, message='invalid structure data')
-
-        new_job = redis.new_job(structures, job['user'], job['type'], TaskStatus.PREPARING)
-        if new_job is None:
-            abort(500, message='modeling server error')
-
-        return dict(task=new_job['id'], status=TaskStatus.PREPARING, type=job['type'], date=new_job['created_at'],
-                    user=current_user), 201
+        return self.save(task_id, task['type'], TaskStatus.PREPARING, [job_id], ready_modeling), 201

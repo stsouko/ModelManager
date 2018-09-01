@@ -24,7 +24,7 @@ from enum import Enum
 class StructureStatus(Enum):
     RAW = 0
     HAS_ERROR = 1
-    CLEAR = 2
+    CLEAN = 2
 
 
 class StructureType(Enum):

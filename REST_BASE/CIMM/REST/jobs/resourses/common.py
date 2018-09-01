@@ -46,7 +46,7 @@ class JobMixin:
         chunks = current_app.config.get('REDIS_CHUNK', 50)
         ex = current_app.config.get('REDIS_TTL', 86400)
         tmp = {}
-        if data is not None:
+        if data:
             for x in range(0, len(data), chunks):  # store structures in chunks.
                 _id = str(uuid4())
                 chunk = {s['structure']: s for s in data[x: x + chunks]}
@@ -107,8 +107,8 @@ class JobMixin:
             tmp = [ch[s_id] for s_id in sorted(ch)]
 
         for s in tmp:
-            for r in s['models']:
-                r['model'] = self.models[r['model']]
+            for m in s['models']:
+                m['model'] = self.models[m['model']]
         return {'structures': tmp, **result}
 
     def __fetch(self, task_id, status):
@@ -140,9 +140,9 @@ class JobMixin:
 
                 if job.is_finished:
                     self.__update_task(task['chunks'], job)
-                    job.delete()
                 else:
                     flag = False
+                job.delete()
 
             task['jobs'] = []
             task['date'] = ended_at

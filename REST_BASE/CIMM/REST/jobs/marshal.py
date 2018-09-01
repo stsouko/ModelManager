@@ -189,11 +189,12 @@ class PreparingDocumentSchema(Schema, DocumentMixin):
                         description='type of validated structure. possible one of the following: ' +
                                     ', '.join('{0.value} - {0.name}'.format(x) for x in StructureType))
 
-    models = Nested(ModelSchema, many=True, default=list)
+    models = Nested(ModelSchema, many=True, dump_only=True)
 
 
 class ModelingDocumentSchema(PreparingDocumentSchema):
     data = StructureField(dump_only=True, description='string containing MRV structure')
+    models = Nested(ModelSchema, many=True, required=True)
 
 
 class PostResponseSchema(Schema):
