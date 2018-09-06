@@ -106,10 +106,12 @@ class JobMixin:
             ch = loads(self.redis.get(chunks[page - 1]))
             tmp = [ch[s_id] for s_id in sorted(ch)]
 
-        for s in tmp:
+        return {'structures': tmp, **result}
+
+    def reset_models(self, structures):
+        for s in structures:
             for m in s['models']:
                 m['model'] = self.models[m['model']]
-        return {'structures': tmp, **result}
 
     def __fetch(self, task_id, status):
         task = self.redis.get(task_id)

@@ -19,4 +19,5 @@
 #  MA 02110-1301, USA.
 #
 from .create import CreateTask, UploadTask, BatchDownload
+from .process import ProcessTask
 from .prepare import PrepareTask

@@ -43,6 +43,7 @@ blueprint.add_url_rule('/upload', endpoint='upload', view_func=UploadTask.as_vie
 blueprint.add_url_rule('/batch/<string:file>', view_func=BatchDownload.as_view('batch'))
 
 blueprint.add_url_rule('/prepare/<string:task>', endpoint='prepare', view_func=PrepareTask.as_view('prepare'))
+blueprint.add_url_rule('/process/<string:task>', endpoint='process', view_func=ProcessTask.as_view('process'))
 
 # DON'T MOVE. docs.init_app should be after all routes definition
 blueprint.record_once(lambda state: docs.init_app(state.app))

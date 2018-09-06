@@ -18,13 +18,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask import current_app
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
-from flask_login import login_required, current_user
+from flask_login import login_required
 from marshmallow.fields import Integer
 from marshmallow.validate import Range
 from pony.orm import db_session
-from uuid import uuid4
 from .common import dynamic_docstring, JobMixin
 from ..marshal import PreparingDocumentSchema, PostResponseSchema, GetResponseSchema
 from ...utils import abort
@@ -36,7 +34,7 @@ class PrepareTask(MethodResource, JobMixin):
     @db_session
     @login_required
     @use_kwargs({'page': Integer(validate=Range(1), description='results pagination')}, locations=('query',))
-    @marshal_with(GetResponseSchema, 200, 'validation task')
+    @marshal_with(GetResponseSchema, 200, 'validated task')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
     @marshal_with(None, 404, 'invalid task id or page not found')
@@ -48,7 +46,7 @@ class PrepareTask(MethodResource, JobMixin):
                        ResultType.TEXT, StructureType.REACTION, StructureType.MOLECULE)
     def get(self, task, page=None):
         """
-        Task with validated structure and conditions data
+        task with validated structures and conditions data
 
         all structures has check status = {1.value} [{1.name}] - all checks passed. {3.value} [{3.name}] - structure \
         has errors. {2.value} [{2.name}] - validation failed.
@@ -61,7 +59,8 @@ class PrepareTask(MethodResource, JobMixin):
         this models contain empty results list.
 
         if preparer model failed [due to server lag etc] returned structures with status = {2.value} [{2.name}] and\
-        {0.name} model with empty results list. In this case possible to resend this task to revalidation as is.
+        {0.name} model with results list containing error message.
+        in this case possible to resend this task to revalidation as is.
         for upload task failed validation return empty structure list and resend impossible.
 
         model results response structure:
@@ -69,7 +68,9 @@ class PrepareTask(MethodResource, JobMixin):
         type: data type = {4.value} [{4.name}] - plain text information
         value: string - body
         """
-        return self.fetch(task, TaskStatus.PREPARED, page), 200
+        task = self.fetch(task, TaskStatus.PREPARED, page)
+        self.reset_models(task['structures'])
+        return task, 200
 
     @db_session
     @login_required
@@ -85,9 +86,8 @@ class PrepareTask(MethodResource, JobMixin):
     @dynamic_docstring(StructureStatus.HAS_ERROR)
     def post(self, *data, task):
         """
-        Revalidate task structures and conditions
+        revalidate task structures and conditions
 
-        possible to send list of TaskStructureFields.
         send only changed data and structure id's. e.g. if user changed only temperature in structure 4 json should be
         {{"temperature": new_value, "structure": 4}} or in  list [{{"temperature": new_value, "structure": 4}}]
 
@@ -103,10 +103,6 @@ class PrepareTask(MethodResource, JobMixin):
 
         task = self.fetch(task, TaskStatus.PREPARED)
         prepared = {s['structure']: s for s in task['structures']}
-        for s in task['structures']:
-            for m in s['models']:
-                m['model'] = m['model'].id
-
         update = {x['structure']: x for x in data}
 
         try:
@@ -158,7 +154,7 @@ class PrepareTask(MethodResource, JobMixin):
 
         try:
             job_id, task_id = self.enqueue(preparer, need_preparing)
-        except (ConnectionError, ValueError):
+        except ConnectionError:
             abort(500, 'modeling server error')
 
         return self.save(task_id, task['type'], TaskStatus.PREPARING, [job_id], ready_modeling), 201

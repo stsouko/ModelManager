@@ -136,9 +136,10 @@ class ModelingResultSchema(Schema):
     type = IntEnumField(ResultType, description='type of result. possible one of the following: ' +
                                                 ', '.join('{0.value} - {0.name}'.format(x) for x in ResultType))
     result = String(description='key of result. key is a header or title or uid of result')
-    data = Method('dump_result', dump_only=True, description='result data')
+    data = Method('_dump_data', dump_only=True, description='result data')
 
-    def dump_result(self, obj):
+    @staticmethod
+    def _dump_data(obj):
         return obj['data']  # todo: extend
 
 
@@ -151,6 +152,11 @@ class ModelSchema(Schema):
                                ', '.join('{0.value} - {0.name}'.format(x) for x in ModelType))
     description = String(dump_only=True, description='description of model', attribute='model.description')
     results = Nested(ModelingResultSchema, many=True, dump_only=True)
+
+    @post_load
+    def _fix_model(self, data):
+        data['model'] = data['model']['id']
+        return data
 
 
 class DocumentMixin:

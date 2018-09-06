@@ -55,6 +55,9 @@ class CreateTask(MethodResource, JobMixin):
         """
         create new task
         """
+        if not data:
+            abort(422, message='invalid data')
+
         try:
             preparer = self.models.get_by_type(ModelType.PREPARER)[0]
         except IndexError:
@@ -68,7 +71,7 @@ class CreateTask(MethodResource, JobMixin):
 
         try:
             job_id, task_id = self.enqueue(preparer, data)
-        except (ConnectionError, ValueError):
+        except ConnectionError:
             abort(500, 'modeling server error')
 
         return self.save(task_id, _type, TaskStatus.PREPARING, [job_id]), 201
@@ -140,7 +143,7 @@ class UploadTask(MethodResource, JobMixin):
                 abort(400, message='structure file required')
         try:
             job_id, task_id = self.enqueue(preparer, file_url, runner='convert')
-        except (ConnectionError, ValueError):
+        except ConnectionError:
             abort(500, 'modeling server error')
 
         return self.save(task_id, TaskType.MODELING, TaskStatus.PREPARING, [job_id]), 201
