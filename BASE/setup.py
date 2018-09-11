@@ -35,6 +35,7 @@ setup(
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
     entry_points={'console_scripts': ['cimm_worker=CIMM.CLI.worker:run']},
+    package_data={'CIMM.models.preparer': ['step_1.xml', 'step_2.xml']},
     install_requires=['requests'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),

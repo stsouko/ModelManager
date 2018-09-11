@@ -18,145 +18,169 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from CGRtools import CGRpreparer
+from CGRtools.containers import QueryContainer
+from CIMtools.preprocessing import StandardizeChemAxon
+from CIMtools.preprocessing.common import reaction_support
 from functools import partial
-from ...constants import ModelType
-
-
-class Model:
-    def __init__(self):
-        self.__workpath = '.'
-        '''
-        self.__additives = {x['name'].lower(): x for x in get_additives()}
-        
-        config_path = path.join(path.dirname(__file__), 'preparer')
-        templates = path.join(config_path, 'templates.rdf')
-        templates = RDFread(templates, is_template=True) if path.exists(templates) else False
-
-        self.cgr = CGRpreparer(extralabels=True, templates=templates)
-
-        with open(path.join(config_path, 'preparer.xml')) as f:
-            self.__pre_rules = f.read()
-        self.__pre_filter_chain = [dict(filter="standardizer",
-                                        parameters=dict(standardizerDefinition=self.__pre_rules)),
-                                   dict(filter="clean", parameters=dict(dim=2))]
-
-        self.__post_rules = None
-        self.__post_filter_chain = [dict(filter="clean", parameters=dict(dim=2))]
-        if path.exists(path.join(config_path, 'postprocess.xml')):
-            with open(path.join(config_path, 'postprocess.xml')) as f:
-                self.__post_rules = f.read()
-            self.__post_filter_chain.insert(0, dict(filter="standardizer",
-                                                    parameters=dict(standardizerDefinition=self.__post_rules)))
-        '''
-
-    @staticmethod
-    def get_example():
-        return None
-
-    @staticmethod
-    def get_description():
-        return 'Structure checking and possibly restoring'
-
-    @staticmethod
-    def get_name():
-        return 'pp'
-
-    @staticmethod
-    def get_type():
-        return 1
-
-    def set_work_path(self, workpath):
-        self.__workpath = workpath
-
-    def get_results(self, structures):
-        return [self.__parse_structure(s) for s in structures]
-
-    def __parse_structure(self, structure):
-        chemaxed = chemax_post('calculate/molExport',
-                               dict(structure=structure['data'], parameters="rdf", filterChain=self.__pre_filter_chain))
-        if not chemaxed:
-            return False
-
-        with StringIO(chemaxed['structure']) as in_file, StringIO() as out_file:
-            rdf = RDFwrite(out_file)
-            r = next(RDFread(in_file))
-            if isinstance(r, ReactionContainer) and r.products and r.reagents:  # ONLY FULL REACTIONS
-                # todo: preparation for queries!!!
-                g = self.cgr.condense(r)
-                _type = StructureType.REACTION
-                _report = g.graph.get('CGR_REPORT', [])
-                _status = StructureStatus.HAS_ERROR if any('ERROR:' in x for x in _report) else StructureStatus.CLEAR
-                rdf.write(self.cgr.dissociate(g))
-            elif isinstance(r, MoleculeContainer):  # MOLECULES AND MIXTURES
-                _type = StructureType.MOLECULE
-                _report = []
-                _status = StructureStatus.CLEAR
-                rdf.write(r)  # todo: molecules checks.
-            else:
-                return False
-
-            prepared = out_file.getvalue()
-
-        chemaxed = chemax_post('calculate/molExport',
-                               dict(structure=prepared, parameters="mrv", filterChain=self.__post_filter_chain))
-        if not chemaxed:
-            return False
-
-        structure.update(data=chemaxed['structure'].split('\n')[1], status=_status, type=_type,
-                         results=[dict(key='Processed', value=x, type=ResultType.TEXT) for x in _report])
-        return structure
-
-    def chkreaction(self, structure):
-        data = {"structure": structure, "parameters": "smiles:u",
-                "filterChain": [{"filter": "standardizer", "parameters": {"standardizerDefinition": "unmap"}}]}
-        smiles = chemax_post('calculate/molExport', data)
-        if smiles:
-            s, p = loads(smiles)['structure'].split('>>')
-            ss = set(s.split('.'))
-            ps = set(p.split('.'))
-            if ss == ps:
-                return self.__warnings['fe']
-            if ss.intersection(ps):
-                return self.__warnings['pe']
-
-            st = chemax_post('calculate/chemicalTerms', {"structure": s, "parameters": "majorTautomer()"})
-            pt = chemax_post('calculate/chemicalTerms', {"structure": p, "parameters": "majorTautomer()"})
-            if st and pt:
-                st = chemax_post('calculate/molExport',
-                                 {"structure": loads(st)['result']['structureData']['structure'],
-                                  "parameters": "smiles:u"})
-                pt = chemax_post('calculate/molExport',
-                                 {"structure": loads(pt)['result']['structureData']['structure'],
-                                  "parameters": "smiles:u"})
-                if st and pt:
-                    sts = set(loads(st)['structure'].split('.'))
-                    pts = set(loads(pt)['structure'].split('.'))
-                    if sts == pts:
-                        return self.__warnings['tfe']
-                    if ss.intersection(ps):
-                        return self.__warnings['tpe']
-
-                    return None
-
-        return 'reaction check failed'
-
-    __warnings = dict(fe='reagents equal to products',
-                      pe='part of reagents equal to part of products',
-                      tfe='tautomerized and neutralized reagents equal to products',
-                      tpe='tautomerized and neutralized part of reagents equal to part of products')
+from pkg_resources import resource_string
+from ...constants import ModelType, StructureType, ResultType, StructureStatus
 
 
 class ModelLoader:
-    def __call__(self, structures):
-        pass
-
     def __init__(self, name, workpath='.'):
         self.__workpath = workpath
+        self.__std_step_1 = StandardizeChemAxon(resource_string(__package__, 'step_1.xml').decode(), workpath)
+        self.__std_step_2 = reaction_support(StandardizeChemAxon)(resource_string(__package__,
+                                                                                  'step_2.xml').decode(), workpath)
+        self.__cgr = CGRpreparer()
 
     def __new__(cls, name, *args, **kwargs):
         if name != 'Preparer':
-            raise ImportError(f"model '{name}' not found")
+            raise NameError(f"model '{name}' not found")
         return super().__new__(cls)
+
+    def __call__(self, structures):
+        """
+        structure preparation procedure:
+
+        return error for CGR and Query input
+        return error if some of reaction checks failed
+
+        aromatize
+        return error if molecules has invalid valence
+
+        implicify
+        return error if some of reaction checks failed
+
+        do chemaxon standardize.
+        return error if structure invalid.
+        return error if some of reaction checks failed
+        """
+        filtered_1 = []
+        for s in structures:
+            data = s['data']
+            if isinstance(data, QueryContainer) or s['type'] == StructureType.REACTION and \
+                    any(isinstance(x, QueryContainer) for x in (data.reagents, data.products) for x in x):
+                s.update(status=StructureStatus.HAS_ERROR,
+                         results=[dict(result='invalid structure', type=ResultType.TEXT,
+                                       value='Query or CGR types structures not supported')])
+                continue
+
+            s['results'] = tmp = []
+
+            if s['type'] == StructureType.REACTION:
+                r, e = self.__check_reaction(data)
+                if e:
+                    s['status'] = StructureStatus.HAS_ERROR
+                    tmp.extend(r)
+                    continue
+
+            o = data.aromatize()
+            if o:
+                tmp.append(dict(result='Aromatized', value=f'processed {o} molecules in reaction or rings in molecule',
+                                type=ResultType.TEXT))
+
+            if s['type'] == StructureType.REACTION:
+                o = False
+                for ml in (data.reagents, data.products):
+                    for m in ml:
+                        e = m.check_valence()
+                        if e:
+                            o = True
+                            tmp.append(dict(result='Error', value='; '.join(e), type=ResultType.TEXT))
+                if o:
+                    s['status'] = StructureStatus.HAS_ERROR
+                    continue
+            else:
+                e = data.check_valence()
+                if e:
+                    s['status'] = StructureStatus.HAS_ERROR
+                    tmp.append(dict(result='Error', value='; '.join(e), type=ResultType.TEXT))
+                    continue
+
+            o = data.implicify_hydrogens()
+            if o:
+                tmp.append(dict(result='Implicified', value=f'removed {o} H atoms', type=ResultType.TEXT))
+
+            if s['type'] == StructureType.REACTION:
+                r, e = self.__check_reaction(data)
+                if e:
+                    s['status'] = StructureStatus.HAS_ERROR
+                    tmp.extend(r)
+                    continue
+            filtered_1.append(s)
+
+        if not filtered_1:
+            return structures
+
+        filtered_2 = []
+        for s, data in zip(filtered_1, self.__std_step_1.transform([x['data'] for x in filtered_1])):
+            if data is not None:
+                s['data'] = data
+                s['results'].append(dict(result='standardize', type=ResultType.TEXT,
+                                         value='ChemAxon standardize passed'))
+                if s['type'] == StructureType.REACTION:
+                    r, e = self.__check_reaction(data)
+                    if e:
+                        s['status'] = StructureStatus.HAS_ERROR
+                        s['results'].extend(r)
+                        continue
+                    filtered_2.append(s)
+                else:  # molecules processing done
+                    s['status'] = StructureStatus.CLEAN
+            else:
+                s['status'] = StructureStatus.HAS_ERROR
+                s['results'].append(dict(result='invalid structure', type=ResultType.TEXT,
+                                         value='ChemAxon standardize returned error'))
+                continue
+
+        if not filtered_2:
+            return structures
+
+        for s, data in zip(filtered_2, self.__std_step_2.transform([x['data'] for x in filtered_2])):
+            if data is not None:
+                s['results'].append(dict(result='standardize', type=ResultType.TEXT,
+                                         value='ChemAxon standardize tautomerize passed'))
+                r, _ = self.__check_reaction(data)
+                s['results'].extend(r)
+                s['status'] = StructureStatus.CLEAN
+            else:
+                s['status'] = StructureStatus.HAS_ERROR
+                s['results'].append(dict(result='invalid structure', type=ResultType.TEXT,
+                                         value='ChemAxon standardize tautomerize returned error'))
+
+        return structures
+
+    def __check_reaction(self, structure):
+        error = False
+        report = []
+        rs = set(structure.reagents)
+        ps = set(structure.products)
+
+        if rs == ps:
+            report.append(dict(result='Warning', value='all reagents and products is equal', type=ResultType.TEXT))
+            error = True
+        elif rs.issubset(ps):
+            report.append(dict(result='Warning', value='all reagents presented in products', type=ResultType.TEXT))
+            error = True
+        elif rs.issuperset(ps):
+            report.append(dict(result='Warning', value='all products presented in reagents', type=ResultType.TEXT))
+            error = True
+        elif rs.intersection(ps):
+            report.append(dict(result='Warning', value='part of reagents and products is equal', type=ResultType.TEXT))
+
+        cgr = self.__cgr.condense(structure)
+        center = cgr.get_center_atoms()
+        if not center:
+            report.append(dict(result='Warning', value='Atom-to-atom mapping invalid', type=ResultType.TEXT))
+        else:
+            lg = len(cgr)
+            lc = len(center)
+            if lg > 10 and lc / lg > .4:
+                report.append(dict(result='Warning', value=f'To many changed bonds and atoms. {lc} out of {lg}',
+                                   type=ResultType.TEXT))
+        return report, error
 
     @staticmethod
     def _get_models():
