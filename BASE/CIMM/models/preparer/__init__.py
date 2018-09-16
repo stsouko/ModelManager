@@ -64,7 +64,7 @@ class ModelLoader:
                     any(isinstance(x, QueryContainer) for x in (data.reagents, data.products) for x in x):
                 s.update(status=StructureStatus.HAS_ERROR,
                          results=[dict(result='invalid structure', type=ResultType.TEXT,
-                                       value='Query or CGR types structures not supported')])
+                                       data='Query or CGR types structures not supported')])
                 continue
 
             s['results'] = tmp = []
@@ -78,7 +78,7 @@ class ModelLoader:
 
             o = data.aromatize()
             if o:
-                tmp.append(dict(result='Aromatized', value=f'processed {o} molecules in reaction or rings in molecule',
+                tmp.append(dict(result='Aromatized', data=f'processed {o} molecules in reaction or rings in molecule',
                                 type=ResultType.TEXT))
 
             if s['type'] == StructureType.REACTION:
@@ -88,7 +88,7 @@ class ModelLoader:
                         e = m.check_valence()
                         if e:
                             o = True
-                            tmp.append(dict(result='Error', value='; '.join(e), type=ResultType.TEXT))
+                            tmp.append(dict(result='Error', data='; '.join(e), type=ResultType.TEXT))
                 if o:
                     s['status'] = StructureStatus.HAS_ERROR
                     continue
@@ -96,12 +96,12 @@ class ModelLoader:
                 e = data.check_valence()
                 if e:
                     s['status'] = StructureStatus.HAS_ERROR
-                    tmp.append(dict(result='Error', value='; '.join(e), type=ResultType.TEXT))
+                    tmp.append(dict(result='Error', data='; '.join(e), type=ResultType.TEXT))
                     continue
 
             o = data.implicify_hydrogens()
             if o:
-                tmp.append(dict(result='Implicified', value=f'removed {o} H atoms', type=ResultType.TEXT))
+                tmp.append(dict(result='Implicified', data=f'removed {o} H atoms', type=ResultType.TEXT))
 
             if s['type'] == StructureType.REACTION:
                 r, e = self.__check_reaction(data)
@@ -119,7 +119,7 @@ class ModelLoader:
             if data is not None:
                 s['data'] = data
                 s['results'].append(dict(result='standardize', type=ResultType.TEXT,
-                                         value='ChemAxon standardize passed'))
+                                         data='ChemAxon standardize passed'))
                 if s['type'] == StructureType.REACTION:
                     r, e = self.__check_reaction(data)
                     if e:
@@ -132,7 +132,7 @@ class ModelLoader:
             else:
                 s['status'] = StructureStatus.HAS_ERROR
                 s['results'].append(dict(result='invalid structure', type=ResultType.TEXT,
-                                         value='ChemAxon standardize returned error'))
+                                         data='ChemAxon standardize returned error'))
                 continue
 
         if not filtered_2:
@@ -141,14 +141,14 @@ class ModelLoader:
         for s, data in zip(filtered_2, self.__std_step_2.transform([x['data'] for x in filtered_2])):
             if data is not None:
                 s['results'].append(dict(result='standardize', type=ResultType.TEXT,
-                                         value='ChemAxon standardize tautomerize passed'))
+                                         data='ChemAxon standardize tautomerize passed'))
                 r, _ = self.__check_reaction(data)
                 s['results'].extend(r)
                 s['status'] = StructureStatus.CLEAN
             else:
                 s['status'] = StructureStatus.HAS_ERROR
                 s['results'].append(dict(result='invalid structure', type=ResultType.TEXT,
-                                         value='ChemAxon standardize tautomerize returned error'))
+                                         data='ChemAxon standardize tautomerize returned error'))
 
         return structures
 
@@ -159,26 +159,26 @@ class ModelLoader:
         ps = set(structure.products)
 
         if rs == ps:
-            report.append(dict(result='Warning', value='all reagents and products is equal', type=ResultType.TEXT))
+            report.append(dict(result='Warning', data='all reagents and products is equal', type=ResultType.TEXT))
             error = True
         elif rs.issubset(ps):
-            report.append(dict(result='Warning', value='all reagents presented in products', type=ResultType.TEXT))
+            report.append(dict(result='Warning', data='all reagents presented in products', type=ResultType.TEXT))
             error = True
         elif rs.issuperset(ps):
-            report.append(dict(result='Warning', value='all products presented in reagents', type=ResultType.TEXT))
+            report.append(dict(result='Warning', data='all products presented in reagents', type=ResultType.TEXT))
             error = True
         elif rs.intersection(ps):
-            report.append(dict(result='Warning', value='part of reagents and products is equal', type=ResultType.TEXT))
+            report.append(dict(result='Warning', data='part of reagents and products is equal', type=ResultType.TEXT))
 
         cgr = self.__cgr.condense(structure)
         center = cgr.get_center_atoms()
         if not center:
-            report.append(dict(result='Warning', value='Atom-to-atom mapping invalid', type=ResultType.TEXT))
+            report.append(dict(result='Warning', data='Atom-to-atom mapping invalid', type=ResultType.TEXT))
         else:
             lg = len(cgr)
             lc = len(center)
             if lg > 10 and lc / lg > .4:
-                report.append(dict(result='Warning', value=f'To many changed bonds and atoms. {lc} out of {lg}',
+                report.append(dict(result='Warning', data=f'To many changed bonds and atoms. {lc} out of {lg}',
                                    type=ResultType.TEXT))
         return report, error
 
