@@ -22,7 +22,7 @@ from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
 from flask import Blueprint
 from flask_apispec import FlaskApiSpec
-from .models import get_schema
+from .database import get_schema
 from .resourses import *
 from .resourses.create import TaskTypeConverter
 
@@ -41,6 +41,7 @@ docs.register(Saved, endpoint='save', blueprint='CIMM_JobsAPI')
 docs.register(SavedMetadata, endpoint='save_meta', blueprint='CIMM_JobsAPI')
 docs.register(SavedList, endpoint='saves', blueprint='CIMM_JobsAPI')
 docs.register(SavedCount, endpoint='saves_count', blueprint='CIMM_JobsAPI')
+docs.register(AvailableModels, endpoint='models', blueprint='CIMM_JobsAPI')
 
 
 blueprint = Blueprint('CIMM_JobsAPI', __name__)
@@ -71,6 +72,8 @@ blueprint.add_url_rule('/saves/<string:task>/meta', view_func=SavedMetadata.as_v
 blueprint.add_url_rule('/saves', view_func=saved_list_view, methods=['POST'])
 blueprint.add_url_rule('/saves/pages/<int(min=1):page>', view_func=saved_list_view, methods=['GET'])
 blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count'))
+
+blueprint.add_url_rule('/models', view_func=AvailableModels.as_view('models'))
 
 # DON'T MOVE. docs.init_app should be after all routes definition
 blueprint.record_once(lambda state: docs.init_app(state.app))

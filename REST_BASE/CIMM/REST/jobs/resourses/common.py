@@ -26,7 +26,7 @@ from pickle import dumps, loads
 from pony.orm import db_session
 from redis import Redis, ConnectionError
 from uuid import uuid4
-from ..models import get_schema
+from ..database import get_schema
 from ...utils import abort
 from ....constants import TaskStatus
 

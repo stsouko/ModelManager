@@ -27,7 +27,7 @@ from pony.orm import db_session
 from .common import JobMixin
 from ..marshal import (SavedMetadataSchema, SavedSchema, ProcessingDocumentSchema, SavedListSchema, CountSchema,
                        ExtendedSavedMetadataSchema)
-from ..models import get_schema
+from ..database import get_schema
 from ...utils import abort
 from ....constants import TaskStatus, TaskType
 

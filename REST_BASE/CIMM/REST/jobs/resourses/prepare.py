@@ -95,7 +95,7 @@ class Prepare(JobMixin, MethodResource):
         update = {x['structure']: x for x in data}
 
         try:
-            preparer = self.models.get_by_type(ModelType.PREPARER)[0]
+            preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
         except IndexError:
             abort(500, 'dispatcher server error')
 

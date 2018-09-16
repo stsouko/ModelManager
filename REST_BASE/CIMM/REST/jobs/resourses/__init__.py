@@ -19,6 +19,7 @@
 #  MA 02110-1301, USA.
 #
 from .create import CreateTask, UploadTask, BatchDownload
+from .model import AvailableModels
 from .process import Process, ProcessMetadata
 from .prepare import Prepare, PrepareMetadata
 from .save import Saved, SavedMetadata, SavedList, SavedCount

@@ -52,7 +52,7 @@ class CreateTask(JobMixin, MethodResource):
         create new task
         """
         try:
-            preparer = self.models.get_by_type(ModelType.PREPARER)[0]
+            preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
         except IndexError:
             abort(500, 'dispatcher server error')
 
@@ -115,7 +115,7 @@ class UploadTask(JobMixin, MethodResource):
         see task/create doc about acceptable conditions values and additives types and response structure.
         """
         try:
-            preparer = self.models.get_by_type(ModelType.PREPARER)[0]
+            preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
         except IndexError:
             abort(500, 'dispatcher server error')
 

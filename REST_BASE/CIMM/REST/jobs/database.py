@@ -72,10 +72,6 @@ class DBModel:
                 example['status'] = StructureStatus.CLEAR
                 return example
 
-            @classmethod
-            def get_by_type(cls, _type):
-                return list(cls.select(lambda x: x._type == _type.value))
-
             @property
             def destinations(self):
                 return list(self._destinations)

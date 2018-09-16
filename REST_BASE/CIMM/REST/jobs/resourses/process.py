@@ -20,7 +20,6 @@
 #
 from collections import defaultdict
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
-from itertools import chain
 from uuid import uuid4
 from .common import dynamic_docstring, JobMixin
 from ..marshal import ProcessingDocumentSchema, MetadataSchema, ProcessedSchema, ExtendedMetadataSchema
@@ -79,8 +78,8 @@ class Process(JobMixin, MethodResource):
 
         prepared = {s['structure']: s for s in task['structures']}
         update = {x['structure']: x for x in data}
-        models = {x.id: x for x in chain(self.models.get_by_type(ModelType.MOLECULE_MODELING),
-                                         self.models.get_by_type(ModelType.REACTION_MODELING))}
+        models = {x.id: x for x in self.models.select(lambda x: x._type in (ModelType.MOLECULE_MODELING.value,
+                                                                            ModelType.REACTION_MODELING.value))}
 
         ready_modeling = defaultdict(list)
         for s, ps in prepared.items():

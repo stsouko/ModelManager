@@ -148,22 +148,6 @@ class ResultSchema(Schema):
         return obj['data']  # todo: extend
 
 
-class ModelSchema(Schema):
-    model = Integer(required=True, validate=Range(1), attribute='model.id',
-                    description='id of model. need for selecting models which will be applied to structure')
-    name = String(dump_only=True, description='name of model', attribute='model.name')
-    type = Integer(dump_only=True, attribute='model._type',
-                   description='type of model. possible one of the following: ' +
-                               ', '.join(f'{x.value} - {x.name}' for x in ModelType))
-    description = String(dump_only=True, description='description of model', attribute='model.description')
-    results = Nested(ResultSchema, many=True, dump_only=True)
-
-    @post_load
-    def _fix_model(self, data):
-        data['model'] = data['model']['id']
-        return data
-
-
 class DocumentMixin:
     @post_load
     def _set_type(self, data):
@@ -191,6 +175,23 @@ class CreatingDocumentSchema(Schema, DocumentMixin):
     data = StructureField(required=True, description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
 
 
+class ModelSchema(Schema):
+    model = Integer(required=True, validate=Range(1), attribute='model.id',
+                    description='id of model. need for selecting models which will be applied to structure')
+    name = String(dump_only=True, description='name of model', attribute='model.name')
+    type = Integer(dump_only=True, attribute='model._type',
+                   description='type of model. possible one of the following: ' +
+                               ', '.join(f'{x.value} - {x.name}' for x in ModelType))
+    description = String(dump_only=True, description='description of model', attribute='model.description')
+    example = Nested(CreatingDocumentSchema, dump_only=True)
+    results = Nested(ResultSchema, many=True, dump_only=True)
+
+    @post_load
+    def _fix_model(self, data):
+        data['model'] = data['model']['id']
+        return data
+
+
 class PreparingDocumentSchema(CreatingDocumentSchema):
     temperature = Float(validate=Range(100, 600), description='temperature of media in Kelvin')
     pressure = Float(validate=Range(0, 100000), description='pressure of media in bars')
@@ -209,12 +210,12 @@ class PreparingDocumentSchema(CreatingDocumentSchema):
                         description='type of validated structure. possible one of the following: ' +
                                     ', '.join(f'{x.value} - {x.name}' for x in StructureType))
 
-    models = Nested(ModelSchema, many=True, dump_only=True)
+    models = Nested(ModelSchema, many=True, dump_only=True, exclude=('example',))
 
 
 class ProcessingDocumentSchema(PreparingDocumentSchema):
     data = StructureField(dump_only=True, description='string containing MRV structure')
-    models = Nested(ModelSchema, many=True, required=True)
+    models = Nested(ModelSchema, many=True, required=True, exclude=('example',))
 
 
 class MetadataSchema(Schema):
