@@ -30,7 +30,18 @@ from .resourses.create import TaskTypeConverter
 docs = FlaskApiSpec()
 docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
 docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
-docs.register(PrepareTask, endpoint='prepare', blueprint='CIMM_JobsAPI')
+
+docs.register(Prepare, endpoint='prepare', blueprint='CIMM_JobsAPI')
+docs.register(PrepareMetadata, endpoint='prepare_meta', blueprint='CIMM_JobsAPI')
+
+docs.register(Process, endpoint='process', blueprint='CIMM_JobsAPI')
+docs.register(ProcessMetadata, endpoint='process_meta', blueprint='CIMM_JobsAPI')
+
+docs.register(Saved, endpoint='save', blueprint='CIMM_JobsAPI')
+docs.register(SavedMetadata, endpoint='save_meta', blueprint='CIMM_JobsAPI')
+docs.register(SavedList, endpoint='saves', blueprint='CIMM_JobsAPI')
+docs.register(SavedCount, endpoint='saves_count', blueprint='CIMM_JobsAPI')
+
 
 blueprint = Blueprint('CIMM_JobsAPI', __name__)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
@@ -38,12 +49,28 @@ blueprint.record_once(lambda state: state.app.config.update(APISPEC_SPEC=APISpec
                                                                                  openapi_version='2.0',
                                                                                  plugins=(MarshmallowPlugin(),))))
 
-blueprint.add_url_rule('/create/<TaskType:_type>', endpoint='create', view_func=CreateTask.as_view('create'))
-blueprint.add_url_rule('/upload', endpoint='upload', view_func=UploadTask.as_view('upload'))
+blueprint.add_url_rule('/create/<TaskType:_type>', view_func=CreateTask.as_view('create'))
+blueprint.add_url_rule('/upload', view_func=UploadTask.as_view('upload'))
 blueprint.add_url_rule('/batch/<string:file>', view_func=BatchDownload.as_view('batch'))
 
-blueprint.add_url_rule('/prepare/<string:task>', endpoint='prepare', view_func=PrepareTask.as_view('prepare'))
-blueprint.add_url_rule('/process/<string:task>', endpoint='process', view_func=ProcessTask.as_view('process'))
+prepare_view = Prepare.as_view('prepare')
+blueprint.add_url_rule('/prepare/<string:task>', view_func=prepare_view)
+blueprint.add_url_rule('/prepare/<string:task>/pages/<int(min=1):page>', view_func=prepare_view, methods=['GET'])
+blueprint.add_url_rule('/prepare/<string:task>/meta', view_func=PrepareMetadata.as_view('prepare_meta'))
+
+process_view = Process.as_view('process')
+blueprint.add_url_rule('/process/<string:task>', view_func=process_view)
+blueprint.add_url_rule('/process/<string:task>/pages/<int(min=1):page>', view_func=process_view, methods=['GET'])
+blueprint.add_url_rule('/process/<string:task>/meta', view_func=ProcessMetadata.as_view('process_meta'))
+
+saved_view = Saved.as_view('save')
+saved_list_view = SavedList.as_view('saves')
+blueprint.add_url_rule('/saves/<string:task>', view_func=saved_view)
+blueprint.add_url_rule('/saves/<string:task>/pages/<int(min=1):page>', view_func=saved_view, methods=['GET'])
+blueprint.add_url_rule('/saves/<string:task>/meta', view_func=SavedMetadata.as_view('save_meta'))
+blueprint.add_url_rule('/saves', view_func=saved_list_view, methods=['POST'])
+blueprint.add_url_rule('/saves/pages/<int(min=1):page>', view_func=saved_list_view, methods=['GET'])
+blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count'))
 
 # DON'T MOVE. docs.init_app should be after all routes definition
 blueprint.record_once(lambda state: docs.init_app(state.app))

@@ -21,14 +21,12 @@
 from flask import send_from_directory, current_app, url_for
 from flask.views import MethodView
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
-from flask_login import login_required
 from marshmallow.fields import String, Url, Field
 from pathlib import Path
-from pony.orm import db_session
 from uuid import uuid4
 from werkzeug.routing import BaseConverter, ValidationError
 from .common import JobMixin
-from ..marshal import DocumentSchema, PostResponseSchema
+from ..marshal import CreatingDocumentSchema, MetadataSchema
 from ...utils import abort
 from ....constants import TaskType, ModelType, TaskStatus
 
@@ -41,13 +39,11 @@ class TaskTypeConverter(BaseConverter):
             raise ValidationError(e)
 
 
-@doc(params={'_type': {'description': 'Task type ID: ' + ', '.join('{0.value} - {0.name}'.format(x) for x in TaskType),
-                       'type': 'integer'}})
-class CreateTask(MethodResource, JobMixin):
-    @db_session
-    @login_required
-    @use_kwargs(DocumentSchema(many=True), locations=('json',))
-    @marshal_with(PostResponseSchema, 201, 'validation task created')
+class CreateTask(JobMixin, MethodResource):
+    @doc(params={'_type': {'description': 'task type id: ' + ', '.join(f'{x.value} - {x.name}' for x in TaskType),
+                           'type': 'integer'}})
+    @use_kwargs(CreatingDocumentSchema(many=True), locations=('json',))
+    @marshal_with(MetadataSchema, 201, 'validation task created')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 422, 'invalid structure data')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
@@ -55,9 +51,6 @@ class CreateTask(MethodResource, JobMixin):
         """
         create new task
         """
-        if not data:
-            abort(422, message='invalid data')
-
         try:
             preparer = self.models.get_by_type(ModelType.PREPARER)[0]
         except IndexError:
@@ -77,12 +70,10 @@ class CreateTask(MethodResource, JobMixin):
         return self.save(task_id, _type, TaskStatus.PREPARING, [job_id]), 201
 
 
-class UploadTask(MethodResource, JobMixin):
-    @db_session
-    @login_required
+class UploadTask(JobMixin, MethodResource):
     @use_kwargs({'file_path': String(attribute='file.path'), 'file_url': Url(attribute='file.url'),
                  'structures': Field()}, locations=('files', ))
-    @marshal_with(PostResponseSchema, 201, 'validation task created')
+    @marshal_with(MetadataSchema, 201, 'validation task created')
     @marshal_with(None, 400, 'structure file required')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 500, 'modeling/dispatcher server error')

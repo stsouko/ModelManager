@@ -19,22 +19,16 @@
 #  MA 02110-1301, USA.
 #
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
-from flask_login import login_required
-from marshmallow.fields import Integer
-from marshmallow.validate import Range
-from pony.orm import db_session
 from .common import dynamic_docstring, JobMixin
-from ..marshal import PreparingDocumentSchema, PostResponseSchema, GetResponseSchema
+from ..marshal import PreparingDocumentSchema, MetadataSchema, PreparedSchema, ExtendedMetadataSchema
 from ...utils import abort
-from ....constants import TaskType, ModelType, TaskStatus, StructureStatus, StructureType, ResultType
+from ....constants import ModelType, TaskStatus, StructureStatus, StructureType, ResultType
 
 
-@doc(params={'task': {'description': 'Task ID', 'type': 'string'}})
-class PrepareTask(MethodResource, JobMixin):
-    @db_session
-    @login_required
-    @use_kwargs({'page': Integer(validate=Range(1), description='results pagination')}, locations=('query',))
-    @marshal_with(GetResponseSchema, 200, 'validated task')
+@doc(params={'task': {'description': 'task id', 'type': 'string'}})
+class Prepare(JobMixin, MethodResource):
+    @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
+    @marshal_with(PreparedSchema, 200, 'validated task')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
     @marshal_with(None, 404, 'invalid task id or page not found')
@@ -72,10 +66,8 @@ class PrepareTask(MethodResource, JobMixin):
         self.reset_models(task['structures'])
         return task, 200
 
-    @db_session
-    @login_required
     @use_kwargs(PreparingDocumentSchema(many=True), locations=('json',))
-    @marshal_with(PostResponseSchema, 201, 'revalidation task created')
+    @marshal_with(MetadataSchema, 201, 'revalidation task created')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
     @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
@@ -98,9 +90,6 @@ class PrepareTask(MethodResource, JobMixin):
         example json: [{{"structure": 5, "todetele": true}}]
             structure with id 5 in task will be removed from list.
         """
-        if not data:
-            abort(422, message='invalid data')
-
         task = self.fetch(task, TaskStatus.PREPARED)
         prepared = {s['structure']: s for s in task['structures']}
         update = {x['structure']: x for x in data}
@@ -158,3 +147,19 @@ class PrepareTask(MethodResource, JobMixin):
             abort(500, 'modeling server error')
 
         return self.save(task_id, task['type'], TaskStatus.PREPARING, [job_id], ready_modeling), 201
+
+
+class PrepareMetadata(JobMixin, MethodResource):
+    @doc(params={'task': {'description': 'Task ID', 'type': 'string'}})
+    @marshal_with(ExtendedMetadataSchema, 200, 'saved data')
+    @marshal_with(None, 401, 'user not authenticated')
+    @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
+    @marshal_with(None, 404, 'invalid task id')
+    @marshal_with(None, 406, 'task status is invalid. only validation tasks acceptable')
+    @marshal_with(None, 500, 'modeling/dispatcher server error')
+    @marshal_with(None, 512, 'task not ready')
+    def get(self, task):
+        """
+        get task metadata
+        """
+        return self.fetch_meta(task, TaskStatus.PREPARED), 200

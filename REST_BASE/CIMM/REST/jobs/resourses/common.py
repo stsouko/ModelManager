@@ -21,8 +21,9 @@
 from collections import Counter
 from datetime import datetime
 from flask import current_app
-from flask_login import current_user
+from flask_login import current_user, login_required
 from pickle import dumps, loads
+from pony.orm import db_session
 from redis import Redis, ConnectionError
 from uuid import uuid4
 from ..models import get_schema
@@ -31,6 +32,8 @@ from ....constants import TaskStatus
 
 
 class JobMixin:
+    decorators = (login_required, db_session)
+
     @staticmethod
     def enqueue(model, data, task_id=None, runner='run'):
         if task_id is None:
@@ -85,7 +88,7 @@ class JobMixin:
     def fetch_meta(self, task, status):
         result = self.__fetch(task, status)
         chunks = result['chunks']
-        return {'structures': len(chunks), 'pages': len(set(chunks.values())), **result}
+        return {'structures': {'total': len(chunks), 'pages': len(set(chunks.values()))}, **result}
 
     def fetch(self, task, status, page=None):
         result = self.__fetch(task, status)

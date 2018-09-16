@@ -134,18 +134,13 @@ class DBModel:
             _table_ = (schema, 'task')
             id = PrimaryKey(int, auto=True)
             task = Required(str, unique=True, sql_type='CHARACTER(36)')
-            date = Required(datetime, default=datetime.utcnow)
-            _type = Required(int, column='type')
+            date = Required(datetime)
+            size = Required(int)
             user = Required(int)
             data = Required(Json, lazy=True)
 
             def __init__(self, data, **kwargs):
-                _type = kwargs.pop('type', TaskType.MODELING).value
-                super().__init__(_type=_type, data=data, **kwargs)
-
-            @property
-            def type(self):
-                return TaskType(self._type)
+                super().__init__(data=data, size=len(data), **kwargs)
 
         return db
 
