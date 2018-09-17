@@ -18,27 +18,18 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from importlib import import_module
-from pkgutil import iter_modules
+from flask_apispec import MethodResource, marshal_with
+from flask_login import login_required
+from ..marshal import AdditiveSchema
+from ....additives import Additive
 
 
-def __getattr__(name):
-    apis = _scan_apis()
-    if name in apis:
-        module = import_module(f'{__package__}.{apis[name]}')
-        return module.blueprint
-    raise AttributeError(f"api '{name}' not found")
-
-
-def __dir__():
-    return list(_scan_apis())
-
-
-def _scan_apis():
-    apis = {}
-    for module_info in iter_modules(import_module(__package__).__path__):
-        if module_info.ispkg:
-            module = import_module(f'{__package__}.{module_info.name}')
-            if hasattr(module, 'blueprint'):
-                apis[module.blueprint.name[5:]] = module_info.name
-    return apis
+class AvailableAdditives(MethodResource):
+    @login_required
+    @marshal_with(AdditiveSchema(many=True, exclude=('amount',)), 200, 'additives list')
+    @marshal_with(None, 401, 'user not authenticated')
+    def get(self):
+        """
+        get available additives list
+        """
+        return Additive.list(), 200

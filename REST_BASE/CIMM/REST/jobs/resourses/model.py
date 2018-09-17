@@ -28,8 +28,8 @@ from ....constants import ModelType
 
 
 class AvailableModels(MethodResource):
-    decorators = (login_required, db_session)
-
+    @db_session
+    @login_required
     @marshal_with(ModelSchema(many=True,
                               exclude=('results',
                                        'example.additives.type',

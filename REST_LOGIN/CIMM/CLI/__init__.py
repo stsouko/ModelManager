@@ -18,27 +18,19 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from importlib import import_module
-from pkgutil import iter_modules
 
+#  _____    _____       ___   _____       ___  ___   _____
+# |  _  \  | ____|     /   | |  _  \     /   |/   | | ____|
+# | |_| |  | |__      / /| | | | | |    / /|   /| | | |__
+# |  _  /  |  __|    / /_| | | | | |   / / |__/ | | |  __|
+# | | \ \  | |___   / /__| | | |_| |  / /       | | | |___
+# |_|  \_\ |_____| /_/   |_| |_____/ /_/        |_| |_____|
+#
+# This __init__.py file is part of namespace package CIMM.API. This file needs to contain only the following:
 
-def __getattr__(name):
-    apis = _scan_apis()
-    if name in apis:
-        module = import_module(f'{__package__}.{apis[name]}')
-        return module.blueprint
-    raise AttributeError(f"api '{name}' not found")
+__import__('pkg_resources').declare_namespace(__name__)
 
-
-def __dir__():
-    return list(_scan_apis())
-
-
-def _scan_apis():
-    apis = {}
-    for module_info in iter_modules(import_module(__package__).__path__):
-        if module_info.ispkg:
-            module = import_module(f'{__package__}.{module_info.name}')
-            if hasattr(module, 'blueprint'):
-                apis[module.blueprint.name[5:]] = module_info.name
-    return apis
+# Every distribution that uses the namespace package CIMM must include an identical __init__.py.
+# If any distribution does not,
+# it will cause the namespace logic to fail and the other sub-packages will not be importable.
+# Any additional code in __init__.py will be inaccessible.

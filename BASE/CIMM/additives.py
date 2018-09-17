@@ -41,14 +41,6 @@ class Additive:
         self.structure = self.structures[name]
         self.type = self.types[name]
 
-    structures, limits, types, ids, names = {}, {}, {}, {}, {}
-    for n, a in enumerate(loads(resource_string(__package__, 'additives.json')), start=1):
-        names[n] = name = a['name']
-        structures[name] = a['structure']
-        limits[name] = a['limit']
-        types[name] = AdditiveType(a['type'])
-        ids[name] = n
-
     def __repr__(self):
         return "%s(%.5f, %s)" % (type(self).__name__, self.amount, repr(self.name))
 
@@ -56,3 +48,15 @@ class Additive:
         if isinstance(other, Additive):
             return self.name == other.name and self.amount == other.amount
         return False
+
+    @classmethod
+    def list(cls):
+        return [cls(y, x) for x, y in cls.limits.items()]
+
+    structures, limits, types, ids, names = {}, {}, {}, {}, {}
+    for n, a in enumerate(loads(resource_string(__package__, 'additives.json')), start=1):
+        names[n] = name = a['name']
+        structures[name] = a['structure']
+        limits[name] = a['limit']
+        types[name] = AdditiveType(a['type'])
+        ids[name] = n

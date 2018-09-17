@@ -18,15 +18,16 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask_restplus import Model
-from flask_restplus.fields import String
-from ..restplus import UnEnumField, UserIDField
+from marshmallow import Schema
+from marshmallow.fields import String, Integer, Email
+from marshmallow.validate import Length
+from MWUI.constants import UserRole
+from ..marshal import IntEnumField
 
 
-login = Model('LogIn', {'user': String(title='login', min_length=5), 'password': String(min_length=1)})
-
-login_response = Model('LogInResponse',
-                       {'user': UserIDField(title='user ID'),
-                        'name': String(attribute='full_name', title='user name'),
-                        'role': UnEnumField(attribute='role', title='user role')}
-                       )
+class UserSchema(Schema):
+    user = Integer(dump_only=True, attribute='id', description='user id')
+    name = String(dump_only=True, attribute='full_name', description='user name')
+    role = IntEnumField(UserRole, dump_only=True, description='user access role')
+    email = Email(load_only=True, required=True, description='user email')
+    password = String(load_only=True, validate=Length(5), required=True, description='user password')

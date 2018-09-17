@@ -18,27 +18,25 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from importlib import import_module
-from pkgutil import iter_modules
+from enum import Enum
+from marshmallow.fields import Integer
 
 
-def __getattr__(name):
-    apis = _scan_apis()
-    if name in apis:
-        module = import_module(f'{__package__}.{apis[name]}')
-        return module.blueprint
-    raise AttributeError(f"api '{name}' not found")
+class IntEnumField(Integer):
+    def __init__(self, enum, **kwargs):
+        self.enum = enum
+        super().__init__(**kwargs)
 
+    def _serialize(self, value, attr, obj):
+        if isinstance(value, Enum):
+            return super()._serialize(value.value, attr, obj)
+        self.fail('not_enum')
 
-def __dir__():
-    return list(_scan_apis())
+    def _deserialize(self, value, attr, data):
+        try:
+            return self.enum(super()._deserialize(value, attr, data))
+        except ValueError:
+            self.fail('unknown_enum')
 
-
-def _scan_apis():
-    apis = {}
-    for module_info in iter_modules(import_module(__package__).__path__):
-        if module_info.ispkg:
-            module = import_module(f'{__package__}.{module_info.name}')
-            if hasattr(module, 'blueprint'):
-                apis[module.blueprint.name[5:]] = module_info.name
-    return apis
+    default_error_messages = {'invalid': 'not a valid integer',
+                              'not_enum': 'not a Enum', 'unknown_enum': 'not a valid Enum key'}

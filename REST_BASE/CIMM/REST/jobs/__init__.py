@@ -18,37 +18,38 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from apispec import APISpec
-from apispec.ext.marshmallow import MarshmallowPlugin
 from flask import Blueprint
-from flask_apispec import FlaskApiSpec
+from flask_login import LoginManager, UserMixin
 from .database import get_schema
 from .resourses import *
 from .resourses.create import TaskTypeConverter
+from ..utils import Documentation as docs
 
 
-docs = FlaskApiSpec()
-docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
-docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
+class U(UserMixin):
+    id = 1
 
-docs.register(Prepare, endpoint='prepare', blueprint='CIMM_JobsAPI')
-docs.register(PrepareMetadata, endpoint='prepare_meta', blueprint='CIMM_JobsAPI')
 
-docs.register(Process, endpoint='process', blueprint='CIMM_JobsAPI')
-docs.register(ProcessMetadata, endpoint='process_meta', blueprint='CIMM_JobsAPI')
+def setup_database(state):
+    config = state.app.config
+    db = get_schema(config['JOBS_DB_SCHEMA'])
+    if db.provider is None:
+        db.bind('postgres', user=config['JOBS_DB_USER'], password=config['JOBS_DB_PASS'],
+                host=config.get('JOBS_DB_HOST', 'localhost'), database=config['JOBS_DB_NAME'],
+                port=config.get('JOBS_DB_PORT', 5432))
+        db.generate_mapping(create_tables=False)
 
-docs.register(Saved, endpoint='save', blueprint='CIMM_JobsAPI')
-docs.register(SavedMetadata, endpoint='save_meta', blueprint='CIMM_JobsAPI')
-docs.register(SavedList, endpoint='saves', blueprint='CIMM_JobsAPI')
-docs.register(SavedCount, endpoint='saves_count', blueprint='CIMM_JobsAPI')
-docs.register(AvailableModels, endpoint='models', blueprint='CIMM_JobsAPI')
+
+def setup_login(state):
+    app = state.app
+    if not hasattr(app, 'login_manager'):  # set login manager ad-hoc
+        LoginManager(app)
 
 
 blueprint = Blueprint('CIMM_JobsAPI', __name__)
+blueprint.record_once(setup_database)
+blueprint.record_once(setup_login)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
-blueprint.record_once(lambda state: state.app.config.update(APISPEC_SPEC=APISpec(title='Jobs API', version='1.0.0',
-                                                                                 openapi_version='2.0',
-                                                                                 plugins=(MarshmallowPlugin(),))))
 
 blueprint.add_url_rule('/create/<TaskType:_type>', view_func=CreateTask.as_view('create'))
 blueprint.add_url_rule('/upload', view_func=UploadTask.as_view('upload'))
@@ -74,6 +75,21 @@ blueprint.add_url_rule('/saves/pages/<int(min=1):page>', view_func=saved_list_vi
 blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count'))
 
 blueprint.add_url_rule('/models', view_func=AvailableModels.as_view('models'))
+blueprint.add_url_rule('/additives', view_func=AvailableAdditives.as_view('additives'))
 
-# DON'T MOVE. docs.init_app should be after all routes definition
-blueprint.record_once(lambda state: docs.init_app(state.app))
+docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
+docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
+
+docs.register(Prepare, endpoint='prepare', blueprint='CIMM_JobsAPI')
+docs.register(PrepareMetadata, endpoint='prepare_meta', blueprint='CIMM_JobsAPI')
+
+docs.register(Process, endpoint='process', blueprint='CIMM_JobsAPI')
+docs.register(ProcessMetadata, endpoint='process_meta', blueprint='CIMM_JobsAPI')
+
+docs.register(Saved, endpoint='save', blueprint='CIMM_JobsAPI')
+docs.register(SavedMetadata, endpoint='save_meta', blueprint='CIMM_JobsAPI')
+docs.register(SavedList, endpoint='saves', blueprint='CIMM_JobsAPI')
+docs.register(SavedCount, endpoint='saves_count', blueprint='CIMM_JobsAPI')
+
+docs.register(AvailableModels, endpoint='models', blueprint='CIMM_JobsAPI')
+docs.register(AvailableAdditives, endpoint='additives', blueprint='CIMM_JobsAPI')

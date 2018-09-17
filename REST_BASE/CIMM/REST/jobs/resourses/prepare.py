@@ -150,7 +150,7 @@ class Prepare(JobMixin, MethodResource):
 
 
 class PrepareMetadata(JobMixin, MethodResource):
-    @doc(params={'task': {'description': 'Task ID', 'type': 'string'}})
+    @doc(params={'task': {'description': 'task id', 'type': 'string'}})
     @marshal_with(ExtendedMetadataSchema, 200, 'saved data')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny. you do not have permission to this task')

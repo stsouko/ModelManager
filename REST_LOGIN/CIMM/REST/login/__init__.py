@@ -19,23 +19,11 @@
 #  MA 02110-1301, USA.
 #
 from flask import Blueprint
-from flask_restplus import Api
-from .create import api as create
-from .marshal import structure_document, description, amounted_additives, post_response
+from .resources import *
+from ..utils import Documentation as docs
 
 
-blueprint = Blueprint('magic', __name__)
-api = Api(blueprint,
-          title='CIMM magic',
-          version='1.0',
-          description='CIMM auth and common resources REST API',
-          validate=True
-          )
+blueprint = Blueprint('CIMM_AuthAPI', __name__)
+blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
 
-api.models[structure_document.name] = structure_document
-api.models[description.name] = description
-api.models[amounted_additives.name] = amounted_additives
-api.models[post_response.name] = post_response
-
-
-api.add_namespace(create, path='/create')
+docs.register(LogIn, endpoint='login', blueprint='CIMM_AuthAPI')

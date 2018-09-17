@@ -18,6 +18,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from flask_apispec import FlaskApiSpec
+from flask_apispec.extension import make_apispec
 from werkzeug.exceptions import HTTPException, Aborter
 
 
@@ -40,3 +42,21 @@ class Abort512(HTTPException):
 
 
 original_flask_abort = Aborter(extra={512: Abort512})
+
+
+class Documentation:
+    @classmethod
+    def register(cls, *args, **kwargs):
+        cls.__doc.register(*args, **kwargs)
+
+    @classmethod
+    def init_app(cls, app):
+        if 'APISPEC_SPEC' not in app.config:
+            app.config['APISPEC_SPEC'] = make_apispec('CIMM API', '2.0')
+
+        cls.__doc.init_app(app)
+
+    def __init__(self, app):
+        self.init_app(app)
+
+    __doc = FlaskApiSpec()

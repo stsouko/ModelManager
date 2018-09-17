@@ -18,6 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from .additive import AvailableAdditives
 from .create import CreateTask, UploadTask, BatchDownload
 from .model import AvailableModels
 from .process import Process, ProcessMetadata

@@ -20,33 +20,13 @@
 #
 from CGRtools.containers import MoleculeContainer, ReactionContainer
 from CGRtools.files import RDFread, SDFread, MRVread, MRVwrite, SMILESread
-from enum import Enum
 from io import StringIO, BytesIO
 from marshmallow import Schema, pre_dump, post_load, ValidationError, pre_load
 from marshmallow.fields import String, Integer, Float, Nested, Boolean, DateTime, Method, Raw, Constant
 from marshmallow.validate import Range
+from ..marshal import IntEnumField
 from ...additives import Additive
 from ...constants import TaskStatus, TaskType, AdditiveType, StructureType, StructureStatus, ModelType, ResultType
-
-
-class IntEnumField(Integer):
-    def __init__(self, enum, **kwargs):
-        self.enum = enum
-        super().__init__(**kwargs)
-
-    def _serialize(self, value, attr, obj):
-        if isinstance(value, Enum):
-            return super()._serialize(value.value, attr, obj)
-        self.fail('not_enum')
-
-    def _deserialize(self, value, attr, data):
-        try:
-            return self.enum(super()._deserialize(value, attr, data))
-        except ValueError:
-            self.fail('unknown_enum')
-
-    default_error_messages = {'invalid': 'not a valid integer',
-                              'not_enum': 'not a Enum', 'unknown_enum': 'not a valid Enum key'}
 
 
 class StructureField(String):
