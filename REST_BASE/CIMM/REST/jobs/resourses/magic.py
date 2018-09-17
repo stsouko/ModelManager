@@ -18,10 +18,26 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from .additive import AvailableAdditives
-from .create import CreateTask, UploadTask, BatchDownload
-from .magic import MagicNumbers
-from .model import AvailableModels
-from .process import Process, ProcessMetadata
-from .prepare import Prepare, PrepareMetadata
-from .save import Saved, SavedMetadata, SavedList, SavedCount
+from flask_apispec import MethodResource, marshal_with
+from flask_login import login_required
+from ....constants import AdditiveType, ModelType, TaskType, TaskStatus, StructureType, StructureStatus, ResultType
+
+
+class MagicNumbers(MethodResource):
+    @login_required
+    @marshal_with(None, 200, 'magic numbers', apply=False)
+    @marshal_with(None, 401, 'user not authenticated')
+    def get(self):
+        """
+        Get Magic numbers
+
+        Dict of all magic numbers with values.
+        """
+        data = {x.__name__: self.__to_dict(x) for x in (TaskType, TaskStatus, StructureType, StructureStatus,
+                                                        AdditiveType, ResultType, ModelType)}
+
+        return data, 200
+
+    @staticmethod
+    def __to_dict(enum):
+        return {x.name: x.value for x in enum}

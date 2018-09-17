@@ -76,6 +76,7 @@ blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count
 
 blueprint.add_url_rule('/models', view_func=AvailableModels.as_view('models'))
 blueprint.add_url_rule('/additives', view_func=AvailableAdditives.as_view('additives'))
+blueprint.add_url_rule('/magic', view_func=MagicNumbers.as_view('magic'))
 
 docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
 docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
@@ -93,3 +94,4 @@ docs.register(SavedCount, endpoint='saves_count', blueprint='CIMM_JobsAPI')
 
 docs.register(AvailableModels, endpoint='models', blueprint='CIMM_JobsAPI')
 docs.register(AvailableAdditives, endpoint='additives', blueprint='CIMM_JobsAPI')
+docs.register(MagicNumbers, endpoint='magic', blueprint='CIMM_JobsAPI')
