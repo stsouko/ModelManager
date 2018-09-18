@@ -28,6 +28,7 @@ from ..utils import Documentation as docs
 
 class U(UserMixin):
     id = 1
+    is_admin = True
 
 
 def setup_database(state):

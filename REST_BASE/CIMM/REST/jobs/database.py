@@ -22,8 +22,7 @@ from datetime import datetime
 from pony.orm import PrimaryKey, Required, Optional, Set, Json, Database
 from redis import Redis, ConnectionError
 from rq import Queue
-from .marshal import PreparingDocumentSchema
-from ...constants import TaskType, StructureType, StructureStatus, ModelType
+from ...constants import ModelType
 
 
 def filter_kwargs(kwargs):
@@ -47,30 +46,19 @@ class DBModel:
         class Model(db.Entity):
             _table_ = (schema, 'model')
             id = PrimaryKey(int, auto=True)
-            description = Optional(str)
+            description = Required(str)
             _destinations = Set('Destination')
-            _example = Optional(Json, column='example')
+            example = Required(Json, lazy=True)
             _type = Required(int, column='type')
             name = Required(str, unique=True)
 
-            def __init__(self, example, **kwargs):
-                _type = kwargs.pop('type', ModelType.MOLECULE_MODELING).value
-                tmp = dict(data=example['data'], pressure=example['pressure'], temperature=example['temperature'],
-                           type=example['type'].value, description=example['description'],
-                           additives=[dict(name=x['name'], amount=x['amount']) for x in example['additives']])
-                super().__init__(_type=_type, _example=tmp, **filter_kwargs(kwargs))
+            def __init__(self, **kwargs):
+                _type = kwargs.pop('type').value
+                super().__init__(_type=_type, **kwargs)
 
             @property
             def type(self):
                 return ModelType(self._type)
-
-            @property
-            def example(self):
-                example = self._example.copy()
-                example.update(models=self, structure=1)
-                example = PreparingDocumentSchema().load(example)
-                example['status'] = StructureStatus.CLEAR
-                return example
 
             @property
             def destinations(self):

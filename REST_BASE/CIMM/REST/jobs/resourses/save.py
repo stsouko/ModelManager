@@ -35,8 +35,8 @@ from ....constants import TaskStatus, TaskType
 class SavedMixin:
     decorators = (login_required, db_session)
 
-    def _get_task(self, task):
-        task = self._db.get(task=task)
+    def fetch(self, task):
+        task = self.tasks.get(task=task)
         if not task:
             abort(404, message='Invalid task id. Perhaps this task has already been removed')
 
@@ -45,7 +45,7 @@ class SavedMixin:
         return task
 
     @property
-    def _db(self):
+    def tasks(self):
         return get_schema(current_app.config['JOBS_DB_SCHEMA']).Task
 
 
@@ -61,7 +61,7 @@ class Saved(SavedMixin, MethodResource):
         task with modeling results of structures with conditions
         """
         chunk = current_app.config.get('REDIS_CHUNK', 50)
-        task = self._get_task(task)
+        task = self.fetch(task)
         structures = task.data
         if page:
             cs = chunk * (page - 1)
@@ -77,9 +77,9 @@ class Saved(SavedMixin, MethodResource):
     @marshal_with(None, 404, 'invalid task id or page not found')
     def delete(self, task):
         """
-        Delete task from db
+        delete task from db
         """
-        task = self._get_task(task)
+        task = self.fetch(task)
         task.delete()
         return task, 202
 
@@ -92,14 +92,14 @@ class SavedMetadata(SavedMixin, MethodResource):
     @marshal_with(None, 404, 'invalid task id')
     def get(self, task):
         """
-        get task metadata
+        task metadata
         """
         chunk = current_app.config.get('REDIS_CHUNK', 50)
-        task = self._get_task(task)
+        task = self.fetch(task)
         return dict(task=task, structures={'total': task.size, 'pages': ceil(task.size / chunk)}), 200
 
 
-class SavedList(SavedMixin, MethodResource, JobMixin):
+class SavedList(JobMixin, SavedMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(SavedListSchema(many=True), 200, 'saved tasks')
     @marshal_with(None, 401, 'user not authenticated')
@@ -108,10 +108,10 @@ class SavedList(SavedMixin, MethodResource, JobMixin):
     @marshal_with(None, 422, 'page must be a positive integer')
     def get(self, page):
         """
-        Get current user's saved tasks
+        current user's saved tasks
         """
         chunk = current_app.config.get('REDIS_CHUNK', 50)
-        q = self._db.select(lambda x: x.user == current_user.get_id())
+        q = self.tasks.select(lambda x: x.user == current_user.get_id())
         if q.count() <= (page - 1) * chunk:
             abort(404, message='page not found')
         return list(q.page(page, pagesize=chunk))
@@ -127,21 +127,20 @@ class SavedList(SavedMixin, MethodResource, JobMixin):
     @marshal_with(None, 512, 'task not ready')
     def post(self, task):
         """
-        Store in database modeled task
+        store in database modeled task
 
         only modeled tasks can be saved.
         failed models in structures skipped.
         """
+        if self.tasks.exists(task=task):
+            abort(409, message='task already exists in db')
+
         task = self.fetch(task, TaskStatus.PROCESSED)
         if task['type'] != TaskType.MODELING:
             abort(406, message='invalid task type')
 
-        if self._db.exists(task=task):
-            abort(409, message='task already exists in db')
-
-        self.reset_models(task['structures'])
         data = ProcessingDocumentSchema.dump(task['structures'])
-        return self.__db(data=data, date=task['date'], user=task['user'], task=task['task']), 201
+        return self.tasks(data=data, date=task['date'], user=task['user'], task=task['task']), 201
 
 
 class SavedCount(SavedMixin, MethodResource):
@@ -151,5 +150,5 @@ class SavedCount(SavedMixin, MethodResource):
         """
         user's saves count
         """
-        q = self._db.select(lambda x: x.user == current_user.get_id()).count()
+        q = self.tasks.select(lambda x: x.user == current_user.get_id()).count()
         return dict(total=q, pages=ceil(q / current_app.config.get('REDIS_CHUNK', 50))), 200

@@ -62,9 +62,7 @@ class Prepare(JobMixin, MethodResource):
         type: data type = {4.value} [{4.name}] - plain text information
         value: string - body
         """
-        task = self.fetch(task, TaskStatus.PREPARED, page)
-        self.reset_models(task['structures'])
-        return task, 200
+        return self.fetch(task, TaskStatus.PREPARED, page), 200
 
     @use_kwargs(PreparingDocumentSchema(many=True), locations=('json',))
     @marshal_with(MetadataSchema, 201, 'revalidation task created')

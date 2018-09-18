@@ -24,7 +24,7 @@ from uuid import uuid4
 from .common import dynamic_docstring, JobMixin
 from ..marshal import ProcessingDocumentSchema, MetadataSchema, ProcessedSchema, ExtendedMetadataSchema
 from ...utils import abort
-from ....constants import ModelType, TaskStatus, StructureStatus, TaskType
+from ....constants import TaskStatus, StructureStatus, TaskType
 
 
 @doc(params={'task': {'description': 'task id', 'type': 'string'}})
@@ -45,9 +45,7 @@ class Process(JobMixin, MethodResource):
         all structures include models with results lists.
         failed models contain empty results lists.
         """
-        task = self.fetch(task, TaskStatus.PROCESSED, page)
-        self.reset_models(task['structures'])
-        return task, 200
+        return self.fetch(task, TaskStatus.PROCESSED, page), 200
 
     @use_kwargs(ProcessingDocumentSchema(many=True), locations=('json',))
     @marshal_with(MetadataSchema, 201, 'processing task created')
@@ -78,8 +76,6 @@ class Process(JobMixin, MethodResource):
 
         prepared = {s['structure']: s for s in task['structures']}
         update = {x['structure']: x for x in data}
-        models = {x.id: x for x in self.models.select(lambda x: x._type in (ModelType.MOLECULE_MODELING.value,
-                                                                            ModelType.REACTION_MODELING.value))}
 
         ready_modeling = defaultdict(list)
         for s, ps in prepared.items():
@@ -105,9 +101,8 @@ class Process(JobMixin, MethodResource):
             if d['models']:
                 ps.pop('models')
                 for m in d['models']:
-                    mid = m['model']
-                    if mid in models and models[mid].type.compatible(ps['type'], task['type']):
-                        ready_modeling[mid].append(ps)
+                    if m.type.compatible(ps['type'], task['type']):
+                        ready_modeling[m].append(ps)
 
         if not ready_modeling:
             abort(422, message='invalid data')

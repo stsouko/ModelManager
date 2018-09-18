@@ -18,28 +18,46 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask import current_app
-from flask_apispec import MethodResource, marshal_with
-from flask_login import login_required
+from flask import current_app, Response
+from flask_apispec import MethodResource, marshal_with, use_kwargs
+from flask_login import login_required, current_user
+from functools import wraps
 from pony.orm import db_session
-from ..marshal import ModelSchema
+from ..marshal import DataBaseModelSchema, DeployModelSchema
 from ..database import get_schema
 from ....constants import ModelType
 
 
+def admin(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if current_user.is_admin:
+            return f(*args, **kwargs)
+
+        return Response('access deny', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+    return wrapper
+
+
 class AvailableModels(MethodResource):
-    @db_session
-    @login_required
-    @marshal_with(ModelSchema(many=True,
-                              exclude=('results',
-                                       'example.additives.type',
-                                       'example.additives.structure',
-                                       'example.additives.name')), 200, 'models list')
+    decorators = (login_required, db_session)
+
+    @marshal_with(DataBaseModelSchema(many=True), 200, 'models list')
     @marshal_with(None, 401, 'user not authenticated')
     def get(self):
         """
         get available models list
         """
-        model = get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
-        return list(model.select(lambda x: x._type in (ModelType.MOLECULE_MODELING.value,
-                                                       ModelType.REACTION_MODELING.value))), 200
+        return list(self.models.select(lambda x: x._type in (ModelType.MOLECULE_MODELING.value,
+                                                             ModelType.REACTION_MODELING.value))), 200
+
+    @admin
+    @use_kwargs(DeployModelSchema)
+    @marshal_with(DataBaseModelSchema, 201, 'models list')
+    @marshal_with(None, 401, 'user not authenticated')
+    def post(self):
+        pass
+
+    @property
+    def models(self):
+        return get_schema(current_app.config['JOBS_DB_SCHEMA']).Model

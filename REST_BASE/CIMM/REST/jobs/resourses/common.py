@@ -111,11 +111,6 @@ class JobMixin:
 
         return {'structures': tmp, **result}
 
-    def reset_models(self, structures):
-        for s in structures:
-            for m in s['models']:
-                m['model'] = self.models[m['model']]
-
     def __fetch(self, task_id, status):
         task = self.redis.get(task_id)
 
