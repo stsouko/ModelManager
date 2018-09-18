@@ -18,16 +18,14 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from marshmallow import Schema
-from marshmallow.fields import String, Integer, Email
-from marshmallow.validate import Length
-from MWUI.constants import UserRole
-from ..marshal import IntEnumField
+from flask import Blueprint
+from .resources import *
+from ..utils import Documentation as docs
 
 
-class UserSchema(Schema):
-    user = Integer(dump_only=True, attribute='id', description='user id')
-    name = String(dump_only=True, attribute='full_name', description='user name')
-    role = IntEnumField(UserRole, dump_only=True, description='user access role')
-    email = Email(load_only=True, required=True, description='user email')
-    password = String(load_only=True, validate=Length(5), required=True, description='user password')
+blueprint = Blueprint('CIMM_MWUI_API', __name__)
+blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
+blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=LogIn.as_view('example'))
+
+docs.register(LogIn, endpoint='login', blueprint='CIMM_MWUI_API')
+docs.register(ExampleView, endpoint='example', blueprint='CIMM_MWUI_API')

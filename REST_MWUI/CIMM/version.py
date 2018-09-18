@@ -18,12 +18,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask import Blueprint
-from .resources import *
-from ..utils import Documentation as docs
 
 
-blueprint = Blueprint('CIMM_AuthAPI', __name__)
-blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
-
-docs.register(LogIn, endpoint='login', blueprint='CIMM_AuthAPI')
+def version():
+    return '1.4.0'

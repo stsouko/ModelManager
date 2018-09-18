@@ -18,14 +18,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
+from flask import redirect, url_for
+from flask.views import MethodView
 from flask_apispec import MethodResource, marshal_with, use_kwargs
 from flask_login import current_user, login_required, login_user
 from MWUI.logins import UserLogin
+from pony.orm import db_session
+from uuid import uuid4
 from .marshal import UserSchema
+from ..jobs.resources.common import JobMixin
 from ..utils import abort
+from ...constants import ModelType, TaskType, TaskStatus
 
 
 class LogIn(MethodResource):
+    decorators = (db_session,)
+
     @login_required
     @marshal_with(UserSchema(exclude=('email', 'password')), code=200)
     @marshal_with(None, 401, 'user not authenticated')
@@ -53,4 +61,30 @@ class LogIn(MethodResource):
         return user, 201
 
 
-__all__ = [LogIn.__name__]
+class ExampleView(JobMixin, MethodView):
+    @db_session
+    @login_required
+    def get(self, _id):
+        """
+        get example task
+        """
+        model = self.models.get(id=_id)
+        if model is None or model.type not in (ModelType.MOLECULE_MODELING, ModelType.REACTION_MODELING):
+            abort(404)
+
+        preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
+        if preparer is None:
+            abort(500, 'dispatcher server error')
+
+        task_id = str(uuid4())
+
+        try:
+            jobs = [self.enqueue(preparer, [model.example])[0]]
+        except ConnectionError:
+            abort(500, 'modeling server error')
+
+        self.save(task_id, TaskType.MODELING, TaskStatus.PROCESSING, jobs)
+        return redirect(url_for('view.predictor') + f'#/prepare/?task={task_id}')
+
+
+__all__ = [LogIn.__name__, ExampleView.__name__]

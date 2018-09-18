@@ -99,19 +99,19 @@ class ModelSchema(Schema):
     results = Nested(ResultSchema, many=True, dump_only=True)
 
     @post_load
-    def _fix_load(self, data):
+    def fix_load(self, data):
         try:
-            data['model'] = self._models[data['model']['id']]
+            data['model'] = self.models[data['model']['id']]
         except ObjectNotFound:
             raise ValidationError('invalid model id')
         return data
 
     @pre_dump
-    def _fix_dump(self, data):
-        return {'model': self._models[data['model']], 'results': data['results']}
+    def fix_dump(self, data):
+        return {'model': self.models[data['model']], 'results': data['results']}
 
     @property
-    def _models(self):
+    def models(self):
         if self.__models_cache is None:
             print('FUUUUUUUUUUUUUUUUUUUU')
             self.__models_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
