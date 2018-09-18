@@ -18,11 +18,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from .additive import AvailableAdditives
-from .create import CreateTask, UploadTask, BatchDownload
-from .event import SubscribeAuth, PubSubURL
-from .magic import MagicNumbers
-from .model import AvailableModels
-from .process import Process, ProcessMetadata
-from .prepare import Prepare, PrepareMetadata
-from .save import Saved, SavedMetadata, SavedList, SavedCount
+from flask import make_response, url_for
+from flask.views import MethodView, View
+from flask_login import current_user, login_required
+
+
+class SubscribeAuth(MethodView):
+    @login_required
+    def get(self):
+        resp = make_response()
+        resp.headers['X-Accel-Redirect'] = url_for('.subscribe', channel=current_user.get_id())
+        resp.headers['X-Accel-Buffering'] = 'no'
+        return resp
+
+
+class PubSubURL(View):
+    methods = ('GET', 'POST')
+
+    def dispatch_request(self, channel):
+        return 'USE NGINX NCHAN'

@@ -78,6 +78,11 @@ blueprint.add_url_rule('/models', view_func=AvailableModels.as_view('models'))
 blueprint.add_url_rule('/additives', view_func=AvailableAdditives.as_view('additives'))
 blueprint.add_url_rule('/magic', view_func=MagicNumbers.as_view('magic'))
 
+blueprint.add_url_rule('/subscribe', view_func=SubscribeAuth.as_view('subscribe_auth'))
+blueprint.add_url_rule('/subscribe/internal/<int:channel>',
+                       view_func=PubSubURL.as_view('subscribe'), methods=['GET'])
+blueprint.add_url_rule('/publish/<int:channel>', view_func=PubSubURL.as_view('publish'), methods=['POST'])
+
 docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
 docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
 
