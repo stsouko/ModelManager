@@ -26,8 +26,8 @@ from marshmallow.validate import Range
 from pony.orm import ObjectNotFound
 from .fields import IntEnumField, StructureField
 from ..database import get_schema
-from ...additives import Additive
-from ...constants import TaskStatus, TaskType, AdditiveType, StructureType, StructureStatus, ModelType, ResultType
+from ....additives import Additive
+from ....constants import TaskStatus, TaskType, AdditiveType, StructureType, StructureStatus, ModelType, ResultType
 
 
 class DescriptionSchema(Schema):

@@ -44,7 +44,7 @@ class LogIn(MethodResource):
         return current_user
 
     @use_kwargs(UserSchema)
-    @marshal_with(UserSchema, 201, 'authentication done')
+    @marshal_with(UserSchema(exclude=('email', 'password')), 201, 'authentication done')
     @marshal_with(None, 403, 'bad credentials')
     @marshal_with(None, 422, 'invalid data')
     def post(self, email, password):

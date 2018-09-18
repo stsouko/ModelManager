@@ -21,8 +21,8 @@
 from flask import Blueprint
 from flask_login import LoginManager, UserMixin
 from .database import get_schema
-from .resourses import *
-from .resourses.create import TaskTypeConverter
+from .resources import *
+from .resources.create import TaskTypeConverter
 from ..utils import Documentation as docs
 
 
