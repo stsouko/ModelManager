@@ -51,9 +51,8 @@ class CreateTask(JobMixin, MethodResource):
         """
         create new task
         """
-        try:
-            preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
-        except IndexError:
+        preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
+        if preparer is None:
             abort(500, 'dispatcher server error')
 
         if _type == TaskType.SEARCHING:
@@ -114,9 +113,8 @@ class UploadTask(JobMixin, MethodResource):
 
         see task/create doc about acceptable conditions values and additives types and response structure.
         """
-        try:
-            preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
-        except IndexError:
+        preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
+        if preparer is None:
             abort(500, 'dispatcher server error')
 
         if file_url is None:  # smart frontend
