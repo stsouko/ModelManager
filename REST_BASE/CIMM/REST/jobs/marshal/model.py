@@ -21,6 +21,7 @@
 from marshmallow import Schema
 from marshmallow.fields import String, Integer, Nested, Raw
 from marshmallow.validate import Length, Range
+from .common import EmptyCheck
 from .documents import CreatingDocumentSchema
 from .fields import IntEnumField
 from ....constants import ModelType
@@ -33,7 +34,7 @@ class DestinationSchema(Schema):
     name = String(validate=Length(3), required=True)
 
 
-class DeployModelSchema(Schema):
+class DeployModelSchema(EmptyCheck, Schema):
     name = String(required=True, validate=Length(5, 20), description='name of model')
     type = IntEnumField(ModelType, required=True, attribute='_type', description='type of model')
     description = String(required=True, validate=Length(10), description='description of model')

@@ -85,6 +85,12 @@ class JobMixin:
             self.__models_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
         return self.__models_cache
 
+    @property
+    def destinations(self):
+        if self.__destinations_cache is None:
+            self.__destinations_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Destination
+        return self.__destinations_cache
+
     def fetch_meta(self, task, status):
         result = self.__fetch(task, status)
         chunks = result['chunks']
@@ -181,7 +187,7 @@ class JobMixin:
         for c_id, chunk in loaded_chunks.items():
             self.redis.set(c_id, dumps(chunk), ex=current_app.config.get('REDIS_TTL', 86400))
 
-    __redis_cache = __models_cache = None
+    __redis_cache = __models_cache = __destinations_cache = None
 
 
 def dynamic_docstring(*sub):

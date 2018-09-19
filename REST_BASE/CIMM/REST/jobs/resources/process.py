@@ -78,11 +78,11 @@ class Process(JobMixin, MethodResource):
         update = {x['structure']: x for x in data}
 
         ready_modeling = defaultdict(list)
-        for s, ps in prepared.items():
+        for n, ps in prepared.items():
             if ps['status'] != StructureStatus.CLEAN:
                 continue
 
-            d = update[s]
+            d = update[n]
             if d.get('todelete'):
                 continue
 

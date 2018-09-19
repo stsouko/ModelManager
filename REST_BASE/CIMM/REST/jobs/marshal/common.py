@@ -18,10 +18,22 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from marshmallow import Schema
+from marshmallow import Schema, pre_load
 from marshmallow.fields import Integer
+from marshmallow.validate import ValidationError
 
 
 class CountSchema(Schema):
     total = Integer(description='amount of available data')
     pages = Integer(description='amount of pages of data')
+
+
+class EmptyCheck:
+    @pre_load(pass_many=True)
+    def check_empty_data(self, data, many):
+        if many:
+            if not isinstance(data, (list, tuple)):
+                raise ValidationError('invalid data')
+            if not data:
+                raise ValidationError('empty data')
+        return data

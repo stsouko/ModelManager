@@ -20,10 +20,11 @@
 #
 from CGRtools.containers import ReactionContainer
 from flask import current_app
-from marshmallow import Schema, ValidationError, pre_dump, post_load, pre_load
+from marshmallow import Schema, ValidationError, pre_dump, post_load
 from marshmallow.fields import String, Integer, Float, Nested, Boolean, Method
 from marshmallow.validate import Range
 from pony.orm import ObjectNotFound
+from .common import EmptyCheck
 from .fields import IntEnumField, StructureField
 from ..database import get_schema
 from ....additives import Additive
@@ -71,22 +72,13 @@ class ResultSchema(Schema):
         return obj['data']  # todo: extend
 
 
-class DocumentMixin:
+class DocumentMixin(EmptyCheck):
     @post_load
-    def _set_type(self, data):
+    def set_type_status(self, data):
         if 'data' in data:
             data['type'] = StructureType.REACTION if isinstance(data['data'], ReactionContainer) else \
                 StructureType.MOLECULE
             data['status'] = StructureStatus.RAW
-        return data
-
-    @pre_load(pass_many=True)
-    def _check_empty(self, data, many):
-        if many:
-            if not isinstance(data, (list, tuple)):
-                raise ValidationError('invalid data')
-            if not data:
-                raise ValidationError('empty data')
         return data
 
 

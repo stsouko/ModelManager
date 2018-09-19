@@ -98,15 +98,15 @@ class Prepare(JobMixin, MethodResource):
 
         need_preparing = []
         ready_modeling = []
-        for s, ps in prepared.items():
-            if s not in update:
+        for n, ps in prepared.items():
+            if n not in update:
                 if ps['status'] == StructureStatus.RAW:  # renew preparer model.
                     del ps['models']
                     need_preparing.append(ps)
                 elif ps['status'] == StructureStatus.CLEAN:
                     ready_modeling.append(ps)
             else:
-                d = update[s]
+                d = update[n]
                 if d.get('todelete'):
                     continue
 

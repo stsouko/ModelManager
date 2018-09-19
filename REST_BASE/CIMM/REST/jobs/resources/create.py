@@ -58,8 +58,8 @@ class CreateTask(JobMixin, MethodResource):
         if _type == TaskType.SEARCHING:
             data = data[:1]
 
-        for s, d in enumerate(data, start=1):
-            d['structure'] = s
+        for n, d in enumerate(data, start=1):
+            d['structure'] = n
 
         try:
             job_id, task_id = self.enqueue(preparer, data)
