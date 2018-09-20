@@ -28,7 +28,6 @@ from tempfile import mkdtemp
 from traceback import format_exc
 from warnings import warn
 from .additives import Additive
-from .config import WORKPATH
 from .constants import ModelType, ResultType, StructureStatus, StructureType
 from .models import loader
 
@@ -51,18 +50,18 @@ def run(structures, model):
             s['results'] = [dict(result='Modeling Failed', data=reason, type=ResultType.TEXT)]
         return structures
 
-    workpath = mkdtemp(dir=WORKPATH)
+    workpath = mkdtemp()
     try:
         mod = getattr(loader, model)(workpath)
-    except AttributeError:
-        warn('Model not found or not loadable', ImportWarning)
+    except:
+        warn(f'Model not found or not loadable.\n{format_exc()}', ImportWarning)
         rmtree(workpath)
         return fail_prep('Model not found or not loadable')
 
     try:
         results = mod([x.copy() for x in structures])
     except:
-        warn(f'Model not working:\n {format_exc()}', UserWarning)
+        warn(f'Model not working:\n{format_exc()}', UserWarning)
         rmtree(workpath)
         return fail_prep('Model not working')
 
@@ -72,19 +71,19 @@ def run(structures, model):
 
     if len(results) != len(structures) and mod.type not in (ModelType.MOLECULE_SEARCHING,
                                                             ModelType.REACTION_SEARCHING):
-        print('Model lost structures. check model code for correctness')
+        warn('Model lost structures. check model code for correctness', UserWarning)
         return fail_prep('Model lost data')
 
     if mod.type in (ModelType.REACTION_MODELING, ModelType.MOLECULE_MODELING):
         if any(s[x] != r[x] for s, r in zip(structures, results)
                for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives', 'description')):
-            print("Editing structure, properties and meta denied! ONLY results assign possible!")
+            warn('Editing structure, properties and meta denied! ONLY results assign possible!', UserWarning)
             return fail_prep('Model broke data')
 
     if mod.type == ModelType.PREPARER:
         if any(s[x] != r[x] for s, r in zip(structures, results) for x in ('structure', 'additives', 'description')):
-            print("Editing meta denied! "
-                  "ONLY results assigning, data, temperature, pressure type and status editing possible!")
+            warn('Editing meta denied! '
+                 'ONLY results assigning, data, temperature, pressure type and status editing possible!', UserWarning)
             return fail_prep('Preparing model not working')
 
     return results

@@ -191,7 +191,7 @@ class ModelLoader:
         return 'Structure Preparer'
 
     @property
-    def class_name(self):
+    def object(self):
         return 'Preparer'
 
     @property
@@ -204,7 +204,7 @@ class ModelLoader:
 
     @property
     def example(self):
-        return None
+        return {'data': 'C1=C-C=C-C=C1'}
 
 
 def __getattr__(name):

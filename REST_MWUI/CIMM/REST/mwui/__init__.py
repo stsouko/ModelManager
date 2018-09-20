@@ -20,11 +20,16 @@
 #
 from flask import Blueprint
 from .resources import *
-from ..utils import Documentation as docs
+from ..utils import Documentation
+
+
+def setup_documentation(state):
+    bp = state.blueprint.name
+    Documentation.register(LogIn, endpoint='login', blueprint=bp)
 
 
 blueprint = Blueprint('CIMM_MWUI_API', __name__)
+blueprint.record_once(setup_documentation)
+
 blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
 blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=LogIn.as_view('example'))
-
-docs.register(LogIn, endpoint='login', blueprint='CIMM_MWUI_API')

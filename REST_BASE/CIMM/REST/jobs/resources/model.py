@@ -34,11 +34,9 @@ from ....constants import ModelType, TaskStatus, TaskType, StructureStatus, Stru
 def admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if current_user.is_admin:
+        if current_user.is_anonymous or current_user.is_admin:
             return f(*args, **kwargs)
-
-        return Response('access deny', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
-
+        return abort(401, message='login required')
     return wrapper
 
 
@@ -53,7 +51,7 @@ class AvailableModels(JobMixin, MethodResource):
                                                              ModelType.REACTION_MODELING.value))), 200
 
     @admin
-    @use_kwargs(DeployModelSchema(many=True))
+    @use_kwargs(DeployModelSchema(many=True), locations=('json',))
     @marshal_with(DataBaseModelSchema(many=True), 201, 'accepted models list')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 500, 'dispatcher/modeling server error')
@@ -64,7 +62,7 @@ class AvailableModels(JobMixin, MethodResource):
 
         report, structures = [], []
         for n, m in enumerate(data, start=1):
-            model = self.models.get(name=m['name'])
+            model = self.models.get(object=m['object'])
             if model:
                 d = m['destination']
                 if not self.destinations.exists(model=model, host=d['host'], port=d['port'], name=d['name']):
@@ -93,14 +91,15 @@ class AvailableModels(JobMixin, MethodResource):
                     break
 
             for s in task['structures']:
-                if s['status'] == StructureStatus.CLEAR:
+                if s['status'] == StructureStatus.CLEAN:
                     m = data[s['structure'] - 1]
                     if m['type'] == ModelType.PREPARER or StructureType[m['type'].name.split('_')[0]] == s['type']:
                         s['structure'] = 1
                         s.pop('models')
                         s = PreparingDocumentSchema().dump(s)
-                        model = self.models(type=m['type'], name=m['name'], description=m['description'], example=s)
+                        model = self.models(type=m['type'], name=m['name'], description=m['description'],
+                                            object=m['object'], example=s)
                         self.destinations(model=model, **m['destination'])
                         report.append(model)
             flush()
-        return report
+        return report, 201

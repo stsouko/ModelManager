@@ -26,14 +26,14 @@ from rq import Connection, Worker
 from ..version import version
 
 
-parser = ArgumentParser(description="CGRdb", epilog="(c) Dr. Ramil Nugmanov", prog='cgrdb',
+parser = ArgumentParser(description='CIMM worker', epilog='(c) Dr. Ramil Nugmanov',
                         formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument("--version", "-v", action="version", version=version(), default=False)
-parser.add_argument('--name', '-n', help='worker name', required=True)
+parser.add_argument('--version', '-v', action='version', version=version(), default=False)
+parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
 parser.add_argument('--config', '-c', default=None, type=FileType(), help='workers configuration file')
 parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
 parser.add_argument('--redis_pass', '-rp', default=None, type=str)
-parser.add_argument('--redis_port', '-rr', default=6379, type=str)
+parser.add_argument('--redis_port', '-rr', default=6379, type=int)
 parser.add_argument('--cgr_db', '-db', action='store_true', help='preload CGRdb')
 
 

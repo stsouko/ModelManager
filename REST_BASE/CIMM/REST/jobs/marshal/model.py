@@ -36,7 +36,8 @@ class DestinationSchema(Schema):
 
 class DeployModelSchema(EmptyCheck, Schema):
     name = String(required=True, validate=Length(5, 20), description='name of model')
-    type = IntEnumField(ModelType, required=True, attribute='_type', description='type of model')
+    object = String(required=True, validate=Length(5, 20), description='internal name of model')
+    type = IntEnumField(ModelType, required=True, description='type of model')
     description = String(required=True, validate=Length(10), description='description of model')
     example = Nested(CreatingDocumentSchema, required=True)
     destination = Nested(DestinationSchema, required=True)
@@ -44,6 +45,7 @@ class DeployModelSchema(EmptyCheck, Schema):
 
 class DataBaseModelSchema(Schema):
     model = Integer(attribute='id', description='id of model')
-    type = Integer(attribute='_type', description='type of model')
+    name = String(description='name of model')
     description = String(description='description of model')
+    type = Integer(attribute='_type', description='type of model')
     example = Raw(description='example structure', attribute='_example')

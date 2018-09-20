@@ -23,7 +23,7 @@ from flask_login import LoginManager, UserMixin
 from .database import get_schema
 from .resources import *
 from .resources.create import TaskTypeConverter
-from ..utils import Documentation as docs
+from ..utils import Documentation
 
 
 class U(UserMixin):
@@ -44,10 +44,33 @@ def setup_database(state):
 def setup_login(state):
     app = state.app
     if not hasattr(app, 'login_manager'):  # set login manager ad-hoc
+        app.config['LOGIN_DISABLED'] = True
         LoginManager(app)
 
 
+def setup_documentation(state):
+    bp = state.blueprint.name
+    Documentation.register(CreateTask, endpoint='create', blueprint=bp)
+    Documentation.register(UploadTask, endpoint='upload', blueprint=bp)
+
+    Documentation.register(Prepare, endpoint='prepare', blueprint=bp)
+    Documentation.register(PrepareMetadata, endpoint='prepare_meta', blueprint=bp)
+
+    Documentation.register(Process, endpoint='process', blueprint=bp)
+    Documentation.register(ProcessMetadata, endpoint='process_meta', blueprint=bp)
+
+    Documentation.register(Saved, endpoint='save', blueprint=bp)
+    Documentation.register(SavedMetadata, endpoint='save_meta', blueprint=bp)
+    Documentation.register(SavedList, endpoint='saves', blueprint=bp)
+    Documentation.register(SavedCount, endpoint='saves_count', blueprint=bp)
+
+    Documentation.register(AvailableModels, endpoint='models', blueprint=bp)
+    Documentation.register(AvailableAdditives, endpoint='additives', blueprint=bp)
+    Documentation.register(MagicNumbers, endpoint='magic', blueprint=bp)
+
+
 blueprint = Blueprint('CIMM_JobsAPI', __name__)
+blueprint.record_once(setup_documentation)
 blueprint.record_once(setup_database)
 blueprint.record_once(setup_login)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(TaskType=TaskTypeConverter))
@@ -83,21 +106,3 @@ blueprint.add_url_rule('/subscribe', view_func=SubscribeAuth.as_view('subscribe_
 blueprint.add_url_rule('/subscribe/internal/<int:channel>',
                        view_func=PubSubURL.as_view('subscribe'), methods=['GET'])
 blueprint.add_url_rule('/publish/<int:channel>', view_func=PubSubURL.as_view('publish'), methods=['POST'])
-
-docs.register(CreateTask, endpoint='create', blueprint='CIMM_JobsAPI')
-docs.register(UploadTask, endpoint='upload', blueprint='CIMM_JobsAPI')
-
-docs.register(Prepare, endpoint='prepare', blueprint='CIMM_JobsAPI')
-docs.register(PrepareMetadata, endpoint='prepare_meta', blueprint='CIMM_JobsAPI')
-
-docs.register(Process, endpoint='process', blueprint='CIMM_JobsAPI')
-docs.register(ProcessMetadata, endpoint='process_meta', blueprint='CIMM_JobsAPI')
-
-docs.register(Saved, endpoint='save', blueprint='CIMM_JobsAPI')
-docs.register(SavedMetadata, endpoint='save_meta', blueprint='CIMM_JobsAPI')
-docs.register(SavedList, endpoint='saves', blueprint='CIMM_JobsAPI')
-docs.register(SavedCount, endpoint='saves_count', blueprint='CIMM_JobsAPI')
-
-docs.register(AvailableModels, endpoint='models', blueprint='CIMM_JobsAPI')
-docs.register(AvailableAdditives, endpoint='additives', blueprint='CIMM_JobsAPI')
-docs.register(MagicNumbers, endpoint='magic', blueprint='CIMM_JobsAPI')

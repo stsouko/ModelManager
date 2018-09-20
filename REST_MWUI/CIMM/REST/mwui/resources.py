@@ -72,14 +72,10 @@ class ExampleView(JobMixin, MethodView):
         if model is None or model.type not in (ModelType.MOLECULE_MODELING, ModelType.REACTION_MODELING):
             abort(404)
 
-        preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
-        if preparer is None:
-            abort(500, 'dispatcher server error')
-
         task_id = str(uuid4())
 
         try:
-            jobs = [self.enqueue(preparer, [model.example])[0]]
+            jobs = [self.enqueue(model, [model.example])[0]]
         except ConnectionError:
             abort(500, 'modeling server error')
 

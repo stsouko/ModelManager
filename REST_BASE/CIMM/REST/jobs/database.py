@@ -46,11 +46,12 @@ class DBModel:
         class Model(db.Entity):
             _table_ = (schema, 'model')
             id = PrimaryKey(int, auto=True)
-            description = Required(str)
-            _destinations = Set('Destination')
-            example = Required(Json, lazy=True)
-            _type = Required(int, column='type')
             name = Required(str, unique=True)
+            description = Required(str)
+            object = Required(str, unique=True)
+            example = Required(Json, lazy=True)
+            destinations = Set('Destination')
+            _type = Required(int, column='type')
 
             def __init__(self, **kwargs):
                 _type = kwargs.pop('type').value
@@ -60,13 +61,9 @@ class DBModel:
             def type(self):
                 return ModelType(self._type)
 
-            @property
-            def destinations(self):
-                return list(self._destinations)
-
             def create_job(self, structures, task_id, job_timeout=3600, result_ttl=86400, runner='CIMM.rq.run'):
                 qs = []
-                for d in self._destinations:
+                for d in self.destinations:
                     try:
                         q = d.get_queue(job_timeout)
                         qs.append((d, q))

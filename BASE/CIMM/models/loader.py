@@ -37,23 +37,20 @@ def __dir__():
 
 
 def _scan_models():
-    loaders = {}
+    models = {}
     for module_info in iter_modules(import_module(__package__).__path__):
         if module_info.ispkg:
             module = import_module(f'{__package__}.{module_info.name}')
             if hasattr(module, 'ModelLoader'):
-                loaders[module_info.name] = module.ModelLoader
+                try:
+                    module = dir(module)
+                except:
+                    warn(f'{module_info.name}.ModelLoader consist errors:\n {format_exc()}', ImportWarning)
 
-    available = {}
-    for module_name, loader in loaders.items():
-        try:
-            models = loader._get_models()
-        except:
-            warn(f"{module_name}.ModelLoader consist errors:\n {format_exc()}", ImportWarning)
-        else:
-            for model_name in models:
-                if model_name in available:
-                    warn(f"{module_name}.ModelLoader has conflict model_name name: {model_name}", ImportWarning)
-                else:
-                    available[model_name] = module_name
-    return available
+                for model_name in module:
+                    if model_name in models:
+                        warn(f"{module_info.name}.ModelLoader has conflict model name '{model_name}' with "
+                             f"{models[model_name]}.ModelLoader", ImportWarning)
+                    else:
+                        models[model_name] = module_info.name
+    return models
