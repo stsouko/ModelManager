@@ -18,7 +18,6 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-from flask import Response
 from flask_apispec import MethodResource, marshal_with, use_kwargs
 from flask_login import current_user
 from functools import wraps

@@ -48,4 +48,4 @@ class DataBaseModelSchema(Schema):
     name = String(description='name of model')
     description = String(description='description of model')
     type = Integer(attribute='_type', description='type of model')
-    example = Raw(description='example structure', attribute='_example')
+    example = Raw(description='example structure')

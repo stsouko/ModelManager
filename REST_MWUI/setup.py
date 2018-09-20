@@ -24,7 +24,7 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='CIMM-REST-LOGIN',
+    name='CIMM-REST-MWUI',
     version=version(),
     packages=find_packages(),
     namespace_packages=['CIMM', 'CIMM.models', 'CIMM.REST', 'CIMM.CLI'],
