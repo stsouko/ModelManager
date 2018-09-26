@@ -27,7 +27,7 @@ from pony.orm import db_session
 from .common import JobMixin
 from ..marshal import (SavedMetadataSchema, SavedSchema, ProcessingDocumentSchema, SavedListSchema, CountSchema,
                        ExtendedSavedMetadataSchema)
-from ..database import get_schema
+from .. import database
 from ...utils import abort
 from ....constants import TaskStatus, TaskType
 
@@ -46,7 +46,7 @@ class SavedMixin:
 
     @property
     def tasks(self):
-        return get_schema(current_app.config['JOBS_DB_SCHEMA']).Task
+        return getattr(database, current_app.config['JOBS_DB_SCHEMA']).Task
 
 
 @doc(params={'task': {'description': 'task id', 'type': 'string'}})

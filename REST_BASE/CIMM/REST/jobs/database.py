@@ -25,10 +25,6 @@ from rq import Queue
 from ...constants import ModelType
 
 
-def filter_kwargs(kwargs):
-    return {x: y for x, y in kwargs.items() if y}
-
-
 class DBModel:
     @classmethod
     def list_schemas(cls):
@@ -104,7 +100,7 @@ class DBModel:
             port = Required(int, default=6379)
 
             def __init__(self, **kwargs):
-                super().__init__(**filter_kwargs(kwargs))
+                super().__init__(**{x: y for x, y in kwargs.items() if y})
 
             def get_queue(self, job_timeout=3600):
                 r = Redis(host=self.host, port=self.port, password=self.password)
@@ -134,7 +130,3 @@ def __dir__():
 
 def __getattr__(schema):
     return DBModel.get_schema(schema)
-
-
-def get_schema(schema, db=None):
-    return DBModel.get_schema(schema, db)

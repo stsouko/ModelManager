@@ -26,7 +26,7 @@ from pickle import dumps, loads
 from pony.orm import db_session
 from redis import Redis, ConnectionError
 from uuid import uuid4
-from ..database import get_schema
+from .. import database
 from ...utils import abort
 from ....constants import TaskStatus
 
@@ -82,13 +82,13 @@ class JobMixin:
     @property
     def models(self):
         if self.__models_cache is None:
-            self.__models_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
+            self.__models_cache = getattr(database, current_app.config['JOBS_DB_SCHEMA']).Model
         return self.__models_cache
 
     @property
     def destinations(self):
         if self.__destinations_cache is None:
-            self.__destinations_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Destination
+            self.__destinations_cache = getattr(database, current_app.config['JOBS_DB_SCHEMA']).Destination
         return self.__destinations_cache
 
     def fetch_meta(self, task, status):

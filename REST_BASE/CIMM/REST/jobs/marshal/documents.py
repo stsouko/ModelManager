@@ -26,7 +26,7 @@ from marshmallow.validate import Range
 from pony.orm import ObjectNotFound
 from .common import EmptyCheck
 from .fields import IntEnumField, StructureField
-from ..database import get_schema
+from .. import database
 from ....additives import Additive
 from ....constants import TaskStatus, TaskType, AdditiveType, StructureType, StructureStatus, ModelType, ResultType
 
@@ -105,8 +105,7 @@ class ModelSchema(Schema):
     @property
     def models(self):
         if self.__models_cache is None:
-            print('FUUUUUUUUUUUUUUUUUUUU')
-            self.__models_cache = get_schema(current_app.config['JOBS_DB_SCHEMA']).Model
+            self.__models_cache = getattr(database, current_app.config['JOBS_DB_SCHEMA']).Model
         return self.__models_cache
 
     __models_cache = None

@@ -20,7 +20,7 @@
 #
 from flask import Blueprint
 from flask_login import LoginManager, UserMixin
-from .database import get_schema
+from . import database
 from .resources import *
 from .resources.create import TaskTypeConverter
 from ..utils import Documentation
@@ -33,7 +33,7 @@ class U(UserMixin):
 
 def setup_database(state):
     config = state.app.config
-    db = get_schema(config['JOBS_DB_SCHEMA'])
+    db = getattr(database, config['JOBS_DB_SCHEMA'])
     if db.provider is None:
         db.bind('postgres', user=config['JOBS_DB_USER'], password=config['JOBS_DB_PASS'],
                 host=config.get('JOBS_DB_HOST', 'localhost'), database=config['JOBS_DB_NAME'],
