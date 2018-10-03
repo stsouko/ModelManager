@@ -72,10 +72,12 @@ def run():
             m = getattr(loader, m)(workpath)
         except:
             warn(f'Model not found or not loadable.\n{format_exc()}', ImportWarning)
-            rmtree(workpath)
         else:
             models.append(dict(name=m.name, description=m.description, type=m.type.value, example=m.example,
                                object=m.object, destination=destination))
+            del m
+        finally:
+            rmtree(workpath)
 
     if models:
         s = Session()

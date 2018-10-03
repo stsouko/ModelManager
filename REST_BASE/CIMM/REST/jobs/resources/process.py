@@ -65,10 +65,6 @@ class Process(JobMixin, MethodResource):
         {{"temperature": new_value, "structure": 4}} or in  list [{{"temperature": new_value, "structure": 4}}]
 
         structures with status {0.value} [{0.name}] will be removed from task.
-        todelete field marks structure for delete.
-
-        example json: [{{"structure": 5, "todetele": true}}]
-            structure with id 5 in task will be removed from list.
         """
         task = self.fetch(task, TaskStatus.PREPARED)
         if task['type'] == TaskType.POPULATING:
@@ -83,21 +79,14 @@ class Process(JobMixin, MethodResource):
                 continue
 
             d = update[n]
-            if d.get('todelete'):
-                continue
-
             if 'additives' in d:
                 ps['additives'] = d['additives']
-
             if 'temperature' in d:
                 ps['temperature'] = d['temperature']
-
             if 'pressure' in d:
                 ps['pressure'] = d['pressure']
-
             if 'description' in d:
                 ps['description'] = d['description']
-
             if d['models']:
                 ps.pop('models')
                 for m in d['models']:

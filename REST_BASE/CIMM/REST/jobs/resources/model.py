@@ -46,8 +46,7 @@ class AvailableModels(JobMixin, MethodResource):
         """
         get available models list
         """
-        return list(self.models.select(lambda x: x._type in (ModelType.MOLECULE_MODELING.value,
-                                                             ModelType.REACTION_MODELING.value))), 200
+        return list(self.models.select(lambda x: x._type != ModelType.PREPARER.value)), 200
 
     @admin
     @use_kwargs(DeployModelSchema(many=True), locations=('json',))
@@ -94,8 +93,7 @@ class AvailableModels(JobMixin, MethodResource):
                     m = data[s['structure'] - 1]
                     if m['type'] == ModelType.PREPARER or StructureType[m['type'].name.split('_')[0]] == s['type']:
                         s['structure'] = 1
-                        s.pop('models')
-                        s = PreparingDocumentSchema().dump(s)
+                        s = PreparingDocumentSchema(exclude=('models',)).dump(s)
                         model = self.models(type=m['type'], name=m['name'], description=m['description'],
                                             object=m['object'], example=s)
                         self.destinations(model=model, **m['destination'])

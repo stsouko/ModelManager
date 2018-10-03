@@ -20,7 +20,7 @@
 #
 from CGRtools.containers import ReactionContainer
 from flask import current_app
-from marshmallow import Schema, ValidationError, pre_dump, post_load
+from marshmallow import Schema, ValidationError, pre_dump, post_load, post_dump
 from marshmallow.fields import String, Integer, Float, Nested, Boolean, Method
 from marshmallow.validate import Range
 from pony.orm import ObjectNotFound
@@ -71,8 +71,12 @@ class ResultSchema(Schema):
     def _dump_data(obj):
         return obj['data']  # todo: extend
 
+    @post_dump
+    def _ad_hoc_compat(self, data):
+        return dict(type=data['type'], key=data['result'], value=data['data'])
 
-class DocumentMixin(EmptyCheck):
+
+class StructureTypeSet:
     @post_load
     def set_type_status(self, data):
         if 'data' in data:
@@ -93,7 +97,7 @@ class ModelSchema(Schema):
     @post_load
     def fix_load(self, data):
         try:
-            data['model'] = self.models[data['model']['id']]
+            data = self.models[data['model']['id']]
         except ObjectNotFound:
             raise ValidationError('invalid model id')
         return data
@@ -111,7 +115,7 @@ class ModelSchema(Schema):
     __models_cache = None
 
 
-class CreatingDocumentSchema(Schema, DocumentMixin):
+class CreatingDocumentSchema(StructureTypeSet, EmptyCheck, Schema):
     temperature = Float(missing=298, validate=Range(100, 600), description='temperature of media in Kelvin')
     pressure = Float(missing=1, validate=Range(0, 100000), description='pressure of media in bars')
     description = Nested(DescriptionSchema, many=True, missing=list, default=list)
@@ -119,22 +123,24 @@ class CreatingDocumentSchema(Schema, DocumentMixin):
     data = StructureField(required=True, description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
 
 
-class PreparingDocumentSchema(CreatingDocumentSchema):
+class DocumentSchema(StructureTypeSet, EmptyCheck, Schema):
     temperature = Float(validate=Range(100, 600), description='temperature of media in Kelvin')
     pressure = Float(validate=Range(0, 100000), description='pressure of media in bars')
     description = Nested(DescriptionSchema, many=True, default=list)
     additives = Nested(AdditiveSchema, many=True, default=list)
-    data = StructureField(description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
-
     structure = Integer(required=True, validate=Range(1),
                         description='structure id for mapping of changes to records in previously validated document')
-    todelete = Boolean(load_only=True,
-                       description='exclude this structure from document before revalidation or modeling')
     status = IntEnumField(StructureStatus, dump_only=True, description='validation status of structure')
     type = IntEnumField(StructureType, dump_only=True, description='type of validated structure')
+
+
+class PreparingDocumentSchema(DocumentSchema):
+    data = StructureField(description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
+    todelete = Boolean(load_only=True,
+                       description='exclude this structure from document before revalidation or modeling')
     models = Nested(ModelSchema, many=True, dump_only=True)
 
 
-class ProcessingDocumentSchema(PreparingDocumentSchema):
+class ProcessingDocumentSchema(DocumentSchema):
     data = StructureField(dump_only=True, description='string containing MRV structure')
     models = Nested(ModelSchema, many=True, required=True)

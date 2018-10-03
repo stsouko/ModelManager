@@ -36,7 +36,7 @@ setup(
     description='ChemoInformatics Models Manager',
     entry_points={'console_scripts': ['cimm_worker=CIMM.CLI.worker:run', 'cimm_register=CIMM.CLI.register:run']},
     package_data={'CIMM.models.preparer': ['step_1.xml', 'step_2.xml']},
-    install_requires=['requests'],
+    install_requires=['CIMtools>=1.4.7,<1.5'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="tools cgr cli",
@@ -50,10 +50,9 @@ setup(
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
                  'Programming Language :: Python :: 3.7'],
-    command_options={'build_sphinx': {'project': ('setup.py', 'CIMM'),
+    command_options={'build_sphinx': {'project': ('setup.py', 'CIMM-BASE'),
                                       'version': ('setup.py', version()), 'source_dir': ('setup.py', 'doc'),
                                       'build_dir':  ('setup.py', 'build/doc'),
                                       'all_files': ('setup.py', True),
-                                      'copyright': ('setup.py', 'Dr. Ramil Nugmanov <stsouko@live.ru>')},
-                     'easy_install': {'allow_hosts': ('setup.py', 'github.com, pypi.python.org')}},
+                                      'copyright': ('setup.py', 'Dr. Ramil Nugmanov <stsouko@live.ru>')}}
 )
