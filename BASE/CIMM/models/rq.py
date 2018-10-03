@@ -27,9 +27,9 @@ from shutil import rmtree
 from tempfile import mkdtemp
 from traceback import format_exc
 from warnings import warn
-from .additives import Additive
-from .constants import ModelType, ResultType, StructureStatus, StructureType
-from .models import loader
+from ..additives import Additive
+from ..constants import ModelType, ResultType, StructureStatus, StructureType
+from ..models import loader
 
 
 def run(structures, model):

@@ -20,7 +20,6 @@
 #
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, FileType
 from configparser import ConfigParser
-from importlib.util import find_spec
 from redis import Redis
 from rq import Connection, Worker
 from ..version import version
@@ -34,7 +33,6 @@ parser.add_argument('--config', '-c', default=None, type=FileType(), help='worke
 parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
 parser.add_argument('--redis_pass', '-rp', default=None, type=str)
 parser.add_argument('--redis_port', '-rr', default=6379, type=int)
-parser.add_argument('--cgr_db', '-db', action='store_true', help='preload CGRdb')
 
 
 class EventWorker(Worker):
@@ -58,12 +56,6 @@ def run():
             redis_port = config[args.name].get('redis_port', 6379)
         except KeyError:
             raise KeyError(f"worker '{args.name}' config not found")
-
-    if args.cgr_db and find_spec('CGRdb'):
-        """ preload DB for speedup.
-        """
-        from CGRdb import Loader
-        Loader.load_schemas()
 
     with Connection(Redis(host=redis_host, port=redis_port, password=redis_pass)):
         EventWorker([args.name]).work()

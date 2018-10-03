@@ -57,7 +57,7 @@ class DBModel:
             def type(self):
                 return ModelType(self._type)
 
-            def create_job(self, structures, task_id, job_timeout=3600, result_ttl=86400, runner='CIMM.rq.run'):
+            def create_job(self, structures, task_id, runner, job_timeout=3600, result_ttl=86400):
                 qs = []
                 for d in self.destinations:
                     try:
@@ -70,7 +70,7 @@ class DBModel:
                 except ValueError:
                     raise ConnectionError
 
-                return self.id, d.id, q.enqueue_call(runner, kwargs={'structures': structures, 'model': self.name},
+                return self.id, d.id, q.enqueue_call(runner, kwargs={'structures': structures, 'model': self.object},
                                                      result_ttl=result_ttl,
                                                      meta={'task': task_id, 'model': self.id, 'destination': d.id}).id
 

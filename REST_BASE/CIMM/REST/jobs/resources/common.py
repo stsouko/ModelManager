@@ -39,10 +39,9 @@ class JobMixin:
         if task_id is None:
             task_id = str(uuid4())
 
-        job_id = model.create_job(data, task_id,
+        job_id = model.create_job(data, task_id, 'CIMM.models.rq.' + runner,
                                   current_app.config.get('REDIS_JOB_TIMEOUT', 3600),
-                                  current_app.config.get('REDIS_TTL', 86400),
-                                  'CIMM.rq.' + runner)
+                                  current_app.config.get('REDIS_TTL', 86400))
         return job_id, task_id
 
     def save(self, task_id, _type, status, jobs, data=None):
