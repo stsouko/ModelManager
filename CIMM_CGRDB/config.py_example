@@ -1,0 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+#  Config file. move it to empty directory and set this directory to environment by CIMM_CGR_DB name
+#  example:
+#  mkdir $HOME/.cimm_cgr_db
+#  cp config.py $HOME/.cimm_cgr_db/
+#  export CIMM_CGR_DB="$HOME/.cimm_cgr_db"
+#
+
+DB_LIST = []
+
+
+DB_USER = 'postgres'
+DB_PASS = ''
+DB_HOST = 'localhost'
+DB_NAME = 'postgres'
+DB_PORT = 5432
+WORKPATH = '/tmp'
