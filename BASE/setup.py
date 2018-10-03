@@ -20,14 +20,13 @@
 #
 from CIMM.version import version
 from pathlib import Path
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 setup(
     name='CIMM-BASE',
     version=version(),
-    packages=find_packages(),
-    namespace_packages=['CIMM', 'CIMM.models', 'CIMM.REST', 'CIMM.CLI'],
+    packages=['CIMM', 'CIMM.models', 'CIMM.models.preparer', 'CIMM.CLI'],
     zip_safe=True,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',
@@ -35,7 +34,7 @@ setup(
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
     entry_points={'console_scripts': ['cimm_worker=CIMM.CLI.worker:run', 'cimm_register=CIMM.CLI.register:run']},
-    package_data={'CIMM.models.preparer': ['step_1.xml', 'step_2.xml']},
+    package_data={'CIMM.models.preparer': ['step_1.xml', 'step_2.xml'], 'CIMM': ['additives.json']},
     install_requires=['CIMtools>=1.4.7,<1.5'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),

@@ -20,14 +20,13 @@
 #
 from CIMM.version import version
 from pathlib import Path
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 setup(
     name='CIMM-REST',
     version=version(),
-    packages=find_packages(),
-    namespace_packages=['CIMM', 'CIMM.models', 'CIMM.REST', 'CIMM.CLI'],
+    packages=['CIMM.REST', 'CIMM.REST.jobs', 'CIMM.REST.jobs.marshal', 'CIMM.REST.jobs.resources'],
     zip_safe=True,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',
