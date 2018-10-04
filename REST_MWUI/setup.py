@@ -10,13 +10,11 @@
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 #  GNU Affero General Public License for more details.
 #
 #  You should have received a copy of the GNU Affero General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CIMM.version import version
 from pathlib import Path
@@ -27,13 +25,13 @@ setup(
     name='CIMM-REST-MWUI',
     version=version(),
     packages=['CIMM.REST.mwui'],
-    zip_safe=True,
+    zip_safe=False,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
-    install_requires=['CIMM-BASE>=1.4.1,<1.5', 'MWUI'],
+    install_requires=['CIMM-REST>=1.4.1,<1.5', 'MWUI'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="tools cgr cli",

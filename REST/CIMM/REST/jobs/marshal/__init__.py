@@ -16,18 +16,8 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask import Blueprint
-from .resources import *
-from ..utils import Documentation
-
-
-def setup_documentation(state):
-    bp = state.blueprint.name
-    Documentation.register(LogIn, endpoint='login', blueprint=bp)
-
-
-blueprint = Blueprint('CIMM_MWUI_API', __name__)
-blueprint.record_once(setup_documentation)
-
-blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
-blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=LogIn.as_view('example'))
+from .common import CountSchema
+from .documents import CreatingDocumentSchema, PreparingDocumentSchema, ProcessingDocumentSchema, AdditiveSchema
+from .model import DataBaseModelSchema, DeployModelSchema
+from .save import SavedMetadataSchema, ExtendedSavedMetadataSchema, SavedListSchema, SavedSchema
+from .task import MetadataSchema, ExtendedMetadataSchema, PreparedSchema, ProcessedSchema

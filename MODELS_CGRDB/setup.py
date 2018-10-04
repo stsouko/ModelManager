@@ -22,16 +22,16 @@ from setuptools import setup
 
 
 setup(
-    name='CIMM-BOILERPLATE',
+    name='CIMM-MODELS-CGRDB',
     version=version(),
-    packages=['CIMM.models', 'CIMM.REST', 'CIMM.CLI'],
+    packages=['CIMM.models.cgrdb'],
     zip_safe=False,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
-    install_requires=['CIMM-CORE>=1.4.1,<1.5'],
+    install_requires=['CIMM-CORE>=1.4.1,<1.5', 'CGRdb>=1.3.0.<1.4'],
     extras_require={'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="tools cgr cli",
@@ -45,7 +45,7 @@ setup(
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
                  'Programming Language :: Python :: 3.7'],
-    command_options={'build_sphinx': {'project': ('setup.py', 'CIMM-BOILERPLATE'),
+    command_options={'build_sphinx': {'project': ('setup.py', 'CIMM-MODELS-CGRDB'),
                                       'version': ('setup.py', version()), 'source_dir': ('setup.py', 'doc'),
                                       'build_dir':  ('setup.py', 'build/doc'),
                                       'all_files': ('setup.py', True),

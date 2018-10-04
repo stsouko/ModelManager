@@ -16,18 +16,27 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask import Blueprint
-from .resources import *
-from ..utils import Documentation
+from importlib import import_module
+from pkgutil import iter_modules
 
 
-def setup_documentation(state):
-    bp = state.blueprint.name
-    Documentation.register(LogIn, endpoint='login', blueprint=bp)
+def __getattr__(name):
+    apis = _scan_apis()
+    if name in apis:
+        module = import_module(f'{__package__}.{apis[name]}')
+        return module.blueprint
+    raise AttributeError(f"api '{name}' not found")
 
 
-blueprint = Blueprint('CIMM_MWUI_API', __name__)
-blueprint.record_once(setup_documentation)
+def __dir__():
+    return list(_scan_apis())
 
-blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
-blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=LogIn.as_view('example'))
+
+def _scan_apis():
+    apis = {}
+    for module_info in iter_modules(import_module(__package__).__path__):
+        if module_info.ispkg:
+            module = import_module(f'{__package__}.{module_info.name}')
+            if hasattr(module, 'blueprint'):
+                apis[module.blueprint.name[5:]] = module_info.name
+    return apis

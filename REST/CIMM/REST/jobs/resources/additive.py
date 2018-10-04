@@ -16,18 +16,18 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask import Blueprint
-from .resources import *
-from ..utils import Documentation
+from flask_apispec import MethodResource, marshal_with
+from flask_login import login_required
+from ..marshal import AdditiveSchema
+from ....additives import Additive
 
 
-def setup_documentation(state):
-    bp = state.blueprint.name
-    Documentation.register(LogIn, endpoint='login', blueprint=bp)
-
-
-blueprint = Blueprint('CIMM_MWUI_API', __name__)
-blueprint.record_once(setup_documentation)
-
-blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
-blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=LogIn.as_view('example'))
+class AvailableAdditives(MethodResource):
+    @login_required
+    @marshal_with(AdditiveSchema(many=True, exclude=('amount',)), 200, 'additives list')
+    @marshal_with(None, 401, 'user not authenticated')
+    def get(self):
+        """
+        get available additives list
+        """
+        return Additive.list(), 200

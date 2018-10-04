@@ -16,18 +16,22 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask import Blueprint
-from .resources import *
-from ..utils import Documentation
+from flask import make_response, url_for
+from flask.views import MethodView, View
+from flask_login import current_user, login_required
 
 
-def setup_documentation(state):
-    bp = state.blueprint.name
-    Documentation.register(LogIn, endpoint='login', blueprint=bp)
+class SubscribeAuth(MethodView):
+    @login_required
+    def get(self):
+        resp = make_response()
+        resp.headers['X-Accel-Redirect'] = url_for('.subscribe', channel=current_user.get_id())
+        resp.headers['X-Accel-Buffering'] = 'no'
+        return resp
 
 
-blueprint = Blueprint('CIMM_MWUI_API', __name__)
-blueprint.record_once(setup_documentation)
+class PubSubURL(View):
+    methods = ('GET', 'POST')
 
-blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
-blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=LogIn.as_view('example'))
+    def dispatch_request(self, channel):
+        return 'USE NGINX NCHAN'
