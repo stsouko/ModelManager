@@ -36,10 +36,10 @@ class SavedMixin:
     def fetch(self, task):
         task = self.tasks.get(task=task)
         if not task:
-            abort(404, message='Invalid task id. Perhaps this task has already been removed')
+            abort(404, message='invalid task id. perhaps this task has already been removed')
 
         if task.user != current_user.get_id():
-            abort(403, message='User access deny. You do not have permission to this task')
+            abort(403, message='user access deny')
         return task
 
     @property
@@ -52,7 +52,7 @@ class Saved(SavedMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(SavedSchema, 200, 'saved task')
     @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
+    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'invalid task id or page not found')
     def get(self, task, page=None):
         """
@@ -71,7 +71,7 @@ class Saved(SavedMixin, MethodResource):
 
     @marshal_with(SavedMetadataSchema, 202, 'task deleted')
     @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
+    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'invalid task id or page not found')
     def delete(self, task):
         """
@@ -86,7 +86,7 @@ class SavedMetadata(SavedMixin, MethodResource):
     @doc(params={'task': {'description': 'task id', 'type': 'string'}})
     @marshal_with(ExtendedSavedMetadataSchema, 200, 'saved data')
     @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
+    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'invalid task id')
     def get(self, task):
         """
@@ -101,9 +101,8 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(SavedListSchema(many=True), 200, 'saved tasks')
     @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
+    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'page not found')
-    @marshal_with(None, 422, 'page must be a positive integer')
     def get(self, page):
         """
         current user's saved tasks
@@ -117,7 +116,7 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(SavedMetadataSchema, 201, 'processed task saved')
     @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny. you do not have permission to this task')
+    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
     @marshal_with(None, 406, 'task status/type is invalid. only modeling tasks acceptable')
     @marshal_with(None, 409, 'task already exists in db')

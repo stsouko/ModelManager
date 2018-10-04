@@ -17,16 +17,11 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from flask import Blueprint
-from flask_login import LoginManager, UserMixin
+from flask_login import LoginManager
 from . import database
 from .resources import *
 from .resources.create import TaskTypeConverter
 from ..utils import Documentation
-
-
-class U(UserMixin):
-    id = 1
-    is_admin = True
 
 
 def setup_database(state):

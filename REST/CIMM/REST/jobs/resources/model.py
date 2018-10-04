@@ -31,7 +31,7 @@ from ....constants import ModelType, TaskStatus, TaskType, StructureStatus, Stru
 def admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if current_user.is_anonymous or current_user.is_admin:
+        if current_user.is_admin:
             return f(*args, **kwargs)
         return abort(401, message='login required')
     return wrapper

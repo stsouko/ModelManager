@@ -126,7 +126,7 @@ class JobMixin:
             abort(406, message='task status is invalid. task status is [%s]' % task['status'].name)
 
         if task['user'] != current_user.get_id():
-            abort(403, message='user access deny. you do not have permission to this task')
+            abort(403, message='user access deny')
 
         if task['jobs']:
             jobs = [self.models.fetch_job(x) for x in task['jobs']]
