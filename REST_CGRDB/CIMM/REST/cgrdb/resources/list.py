@@ -16,7 +16,6 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from collections import namedtuple
 from flask import current_app
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
 from flask_login import current_user
@@ -30,38 +29,33 @@ from ...utils import abort
 from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
 
 
-user_wrap = namedtuple('UserWrapper', ['id'])
-
-
 @doc(params={'database': {'description': 'database name', 'type': 'string'},
              'table': {'description': 'table name', 'type': 'string'}})
 class RecordsList(DBFetch, JobMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'},
                  'user': {'description': 'user id', 'type': 'integer'}})
-    #@marshal_with(None, 200, 'saved tasks')
+    @marshal_with(RecordSchema(many=True), 200, 'saved tasks')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'page/user/database/table not found')
-    def get(self, database, table, page=1, full=False, user=None):
+    def get(self, database, table, page=1, user=None):
         """
         user's records
         """
         if user is None:
-            user = current_user.get_id()
+            user = current_user.id
 
-        if user == current_user.get_id():
-            if not (current_user.is_anonymous or current_user.is_dataminer):
+        if user == current_user.id:
+            if not current_user.is_dataminer:
                 abort(403, message='user access deny. you do not have permission to database')
         elif not current_user.is_admin:
             abort(403, message="user access deny. you do not have permission to see another user's data")
 
         entity = getattr(self.database(database), table[0])
-        q = list(entity.select(lambda x: x.user_id == 1).order_by(lambda x: x.id).
-                 page(page, pagesize=current_app.config.get('CGRDB_PAGESIZE', 50)))
+        q = entity.select(lambda x: x.user_id == current_user.id).order_by(lambda x: x.id).\
+            page(page, pagesize=current_app.config.get('CGRDB_PAGESIZE', 30))
         # todo: preload structures
-        if full:
-            RecordSchema(many=True).dump(q)
-        return RecordMetadataSchema(many=True).dump(q), 200
+        return list(q), 200
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema(many=True), 201, 'record saved')
@@ -84,7 +78,6 @@ class RecordsList(DBFetch, JobMixin, MethodResource):
 
         entity = getattr(database, table[0])
         data_dump = DocumentSchema(exclude=('structure', 'status', 'type'))
-        wrapped_user = user_wrap(current_user.get_id())
 
         res = []
         for s in task['structures']:
@@ -94,9 +87,9 @@ class RecordsList(DBFetch, JobMixin, MethodResource):
             structure = s['data']
             in_db = entity.find_structure(structure)
             if not in_db:
-                in_db = entity(structure, wrapped_user)
+                in_db = entity(structure, current_user)
 
-            res.append(in_db.add_metadata(data, wrapped_user))
+            res.append(in_db.add_metadata(data, current_user))
 
         flush()
         return res, 201

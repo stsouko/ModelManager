@@ -38,7 +38,7 @@ class SavedMixin:
         if not task:
             abort(404, message='invalid task id. perhaps this task has already been removed')
 
-        if task.user != current_user.get_id():
+        if task.user != current_user.id:
             abort(403, message='user access deny')
         return task
 
@@ -108,7 +108,7 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
         current user's saved tasks
         """
         chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
-        q = self.tasks.select(lambda x: x.user == current_user.get_id())
+        q = self.tasks.select(lambda x: x.user == current_user.id)
         if q.count() <= (page - 1) * chunk:
             abort(404, message='page not found')
         return list(q.page(page, pagesize=chunk))
@@ -147,5 +147,5 @@ class SavedCount(SavedMixin, MethodResource):
         """
         user's saves count
         """
-        q = self.tasks.select(lambda x: x.user == current_user.get_id()).count()
+        q = self.tasks.select(lambda x: x.user == current_user.id).count()
         return dict(total=q, pages=ceil(q / current_app.config.get('JOBS_REDIS_CHUNK', 50))), 200

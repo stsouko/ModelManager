@@ -54,13 +54,12 @@ class JobMixin:
                 for s in chunk:
                     tmp[s] = _id
 
-        self.redis.set(task_id, dumps({'chunks': tmp, 'jobs': jobs, 'user': current_user.get_id(),
+        self.redis.set(task_id, dumps({'chunks': tmp, 'jobs': jobs, 'user': current_user.id,
                                        'type': _type, 'task': task_id,
                                        'status': TaskStatus.PREPARED if status == TaskStatus.PREPARING else
                                                  TaskStatus.PROCESSED}), ex=ex)
 
-        return {'task': task_id, 'status': status, 'type': _type, 'date': datetime.utcnow(),
-                'user': current_user.get_id()}
+        return {'task': task_id, 'status': status, 'type': _type, 'date': datetime.utcnow(), 'user': current_user.id}
 
     @property
     def redis(self):
@@ -123,7 +122,7 @@ class JobMixin:
         if task['status'] != status:
             abort(406, message='task status is invalid. task status is [%s]' % task['status'].name)
 
-        if task['user'] != current_user.get_id():
+        if task['user'] != current_user.id:
             abort(403, message='user access deny')
 
         if task['jobs']:

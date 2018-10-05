@@ -17,11 +17,33 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from flask import Blueprint
-from flask_login import LoginManager
+from flask_login import LoginManager, UserMixin
 from . import database
 from .resources import *
 from .resources.create import TaskTypeConverter
 from ..utils import Documentation
+
+
+class User(UserMixin):
+    @property
+    def id(self):
+        return 0
+
+    @property
+    def is_admin(self):
+        return False
+
+    @property
+    def is_authenticated(self):
+        return False
+
+    @property
+    def is_active(self):
+        return False
+
+    @property
+    def is_anonymous(self):
+        return True
 
 
 def setup_database(state):
@@ -36,7 +58,7 @@ def setup_login(state):
     app = state.app
     if not hasattr(app, 'login_manager'):  # set login manager ad-hoc
         app.config['LOGIN_DISABLED'] = True
-        LoginManager(app)
+        LoginManager(app).anonymous_user = User
 
 
 def setup_documentation(state):

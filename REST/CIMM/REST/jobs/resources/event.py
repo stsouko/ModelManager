@@ -25,7 +25,7 @@ class SubscribeAuth(MethodView):
     @login_required
     def get(self):
         resp = make_response()
-        resp.headers['X-Accel-Redirect'] = url_for('.subscribe', channel=current_user.get_id())
+        resp.headers['X-Accel-Redirect'] = url_for('.subscribe', channel=current_user.id)
         resp.headers['X-Accel-Buffering'] = 'no'
         return resp
 
