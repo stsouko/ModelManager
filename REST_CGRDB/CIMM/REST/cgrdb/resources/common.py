@@ -19,15 +19,17 @@
 from CGRdb import Loader
 from flask import current_app
 from werkzeug.routing import BaseConverter, ValidationError
+from ...utils import abort
 
 
-class DBNameConverter(BaseConverter):
-    def to_python(self, value):
+class DBFetch:
+    @staticmethod
+    def database(name):
         db_list = current_app.config['CGRDB_DB_SCHEMAS']
-        if value in db_list:
-            db = Loader(**current_app.config['CGRDB_DB_CONFIG'])
-            return db[value]
-        raise ValidationError()
+        if name not in db_list:
+            abort(404, 'database not found')
+        db = Loader(**current_app.config['CGRDB_DB_CONFIG'])
+        return db[name]
 
 
 class DBTableConverter(BaseConverter):
