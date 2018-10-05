@@ -38,13 +38,13 @@ class JobMixin:
             task_id = str(uuid4())
 
         job_id = model.create_job(data, task_id, 'CIMM.models.rq.' + runner,
-                                  current_app.config.get('REDIS_JOB_TIMEOUT', 3600),
-                                  current_app.config.get('REDIS_TTL', 86400))
+                                  current_app.config.get('JOBS_REDIS_TIMEOUT', 3600),
+                                  current_app.config.get('JOBS_REDIS_TTL', 86400))
         return job_id, task_id
 
     def save(self, task_id, _type, status, jobs, data=None):
-        chunks = current_app.config.get('REDIS_CHUNK', 50)
-        ex = current_app.config.get('REDIS_TTL', 86400)
+        chunks = current_app.config.get('JOBS_REDIS_CHUNK', 50)
+        ex = current_app.config.get('JOBS_REDIS_TTL', 86400)
         tmp = {}
         if data:
             for x in range(0, len(data), chunks):  # store structures in chunks.
@@ -65,9 +65,7 @@ class JobMixin:
     @property
     def redis(self):
         if self.__redis_cache is None:
-            redis = Redis(host=current_app.config.get('REDIS_HOST', 'localhost'),
-                          port=current_app.config.get('REDIS_PORT', 6379),
-                          password=current_app.config.get('REDIS_PASSWORD'))
+            redis = Redis(**current_app.config.get('JOBS_REDIS_CONFIG', {}))
             try:
                 redis.ping()
             except ConnectionError:
@@ -150,11 +148,11 @@ class JobMixin:
             task['jobs'] = []
             task['date'] = ended_at
             if flag:
-                self.redis.set(task_id, dumps(task), ex=current_app.config.get('REDIS_TTL', 86400))
+                self.redis.set(task_id, dumps(task), ex=current_app.config.get('JOBS_REDIS_TTL', 86400))
         return task
 
     def __update_task(self, chunks, job):
-        chunk_size = current_app.config.get('REDIS_CHUNK', 50)
+        chunk_size = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         partial_chunk = next((c_id for c_id, fill in Counter(chunks.values()).items() if fill < chunk_size), None)
         model = job.meta['model']
 
@@ -182,7 +180,7 @@ class JobMixin:
                     partial_chunk = None
 
         for c_id, chunk in loaded_chunks.items():
-            self.redis.set(c_id, dumps(chunk), ex=current_app.config.get('REDIS_TTL', 86400))
+            self.redis.set(c_id, dumps(chunk), ex=current_app.config.get('JOBS_REDIS_TTL', 86400))
 
     __redis_cache = __models_cache = __destinations_cache = None
 

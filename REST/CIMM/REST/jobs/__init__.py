@@ -28,9 +28,7 @@ def setup_database(state):
     config = state.app.config
     db = getattr(database, config['JOBS_DB_SCHEMA'])
     if db.provider is None:
-        db.bind('postgres', user=config['JOBS_DB_USER'], password=config['JOBS_DB_PASS'],
-                host=config.get('JOBS_DB_HOST', 'localhost'), database=config['JOBS_DB_NAME'],
-                port=config.get('JOBS_DB_PORT', 5432))
+        db.bind('postgres', **config['JOBS_DB_CONFIG'])
         db.generate_mapping(create_tables=False)
 
 

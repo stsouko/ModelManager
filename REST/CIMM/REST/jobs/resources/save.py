@@ -58,7 +58,7 @@ class Saved(SavedMixin, MethodResource):
         """
         task with modeling results of structures with conditions
         """
-        chunk = current_app.config.get('REDIS_CHUNK', 50)
+        chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         task = self.fetch(task)
         structures = task.data
         if page:
@@ -92,7 +92,7 @@ class SavedMetadata(SavedMixin, MethodResource):
         """
         task metadata
         """
-        chunk = current_app.config.get('REDIS_CHUNK', 50)
+        chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         task = self.fetch(task)
         return dict(task=task, structures={'total': task.size, 'pages': ceil(task.size / chunk)}), 200
 
@@ -107,7 +107,7 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
         """
         current user's saved tasks
         """
-        chunk = current_app.config.get('REDIS_CHUNK', 50)
+        chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         q = self.tasks.select(lambda x: x.user == current_user.get_id())
         if q.count() <= (page - 1) * chunk:
             abort(404, message='page not found')
@@ -136,7 +136,7 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
         if task['type'] != TaskType.MODELING:
             abort(406, message='invalid task type')
 
-        data = ProcessingDocumentSchema.dump(task['structures'])
+        data = ProcessingDocumentSchema(many=True).dump(task['structures'])
         return self.tasks(data=data, date=task['date'], user=task['user'], task=task['task']), 201
 
 
@@ -148,4 +148,4 @@ class SavedCount(SavedMixin, MethodResource):
         user's saves count
         """
         q = self.tasks.select(lambda x: x.user == current_user.get_id()).count()
-        return dict(total=q, pages=ceil(q / current_app.config.get('REDIS_CHUNK', 50))), 200
+        return dict(total=q, pages=ceil(q / current_app.config.get('JOBS_REDIS_CHUNK', 50))), 200

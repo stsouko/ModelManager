@@ -22,6 +22,7 @@ from marshmallow import Schema, ValidationError, pre_dump, post_load, post_dump
 from marshmallow.fields import String, Integer, Float, Nested, Boolean, Method
 from marshmallow.validate import Range
 from pony.orm import ObjectNotFound
+from pony.orm.core import Entity
 from .common import EmptyCheck
 from .fields import IntEnumField, StructureField
 from .. import database
@@ -102,7 +103,9 @@ class ModelSchema(Schema):
 
     @pre_dump
     def fix_dump(self, data):
-        return {'model': self.models[data['model']], 'results': data['results']}
+        if not isinstance(data['model'], Entity):
+            return {'model': self.models[data['model']], 'results': data['results']}
+        return data
 
     @property
     def models(self):
