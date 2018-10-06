@@ -25,6 +25,8 @@ from ..utils import Documentation
 def setup_documentation(state):
     bp = state.blueprint.name
     Documentation.register(RecordsList, endpoint='list', blueprint=bp)
+    Documentation.register(RecordsFullList, endpoint='list_full', blueprint=bp)
+    Documentation.register(RecordsCount, endpoint='list_count', blueprint=bp)
 
 
 blueprint = Blueprint('CIMM_CGRDB_API', __name__)

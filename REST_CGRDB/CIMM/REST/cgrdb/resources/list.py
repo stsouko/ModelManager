@@ -20,9 +20,11 @@ from flask import current_app
 from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
 from flask_login import current_user
 from marshmallow.fields import String
+from math import ceil
 from pony.orm import flush
 from .common import DBFetch
 from ..marshal import RecordMetadataSchema, RecordSchema
+from ...jobs.marshal import CountSchema
 from ...jobs.marshal.documents import DocumentSchema
 from ...jobs.resources.common import JobMixin
 from ...utils import abort
@@ -31,31 +33,51 @@ from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
 
 @doc(params={'database': {'description': 'database name', 'type': 'string'},
              'table': {'description': 'table name', 'type': 'string'}})
-class RecordsList(DBFetch, JobMixin, MethodResource):
-    @doc(params={'page': {'description': 'page number', 'type': 'integer'},
-                 'user': {'description': 'user id', 'type': 'integer'}})
-    @marshal_with(RecordSchema(many=True), 200, 'saved tasks')
+class RecordsCount(DBFetch, MethodResource):
+    @doc(params={'user': {'description': 'user id', 'type': 'integer'}})
+    @marshal_with(CountSchema, 200, 'records amount')
     @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny')
+    @marshal_with(None, 404, 'user/database/table not found')
+    def get(self, database, table, user=None):
+        """
+        user's records count
+        """
+        q = self.select_by_user(database, table[0], user).count()
+        return dict(total=q, pages=ceil(q / current_app.config.get('CGRDB_PAGESIZE', 30))), 200
+
+    def select_by_user(self, database, table, user):
+        if not current_user.is_dataminer:
+            abort(403, message='user access deny. you do not have permission to database')
+
+        if user is None:
+            user = current_user.id
+        elif user != current_user.id and not current_user.is_admin:
+            abort(403, message="user access deny. you do not have permission to see another user's data")
+
+        return self.database(database, table).select(lambda x: x.user_id == user)
+
+
+class RecordsFullList(RecordsCount, MethodResource):
+    @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
+    @marshal_with(RecordSchema(many=True), 200, 'records data')
     @marshal_with(None, 404, 'page/user/database/table not found')
     def get(self, database, table, page=1, user=None):
         """
         user's records
         """
-        if user is None:
-            user = current_user.id
-
-        if user == current_user.id:
-            if not current_user.is_dataminer:
-                abort(403, message='user access deny. you do not have permission to database')
-        elif not current_user.is_admin:
-            abort(403, message="user access deny. you do not have permission to see another user's data")
-
-        entity = getattr(self.database(database), table[0])
-        q = entity.select(lambda x: x.user_id == current_user.id).order_by(lambda x: x.id).\
-            page(page, pagesize=current_app.config.get('CGRDB_PAGESIZE', 30))
         # todo: preload structures
-        return list(q), 200
+        return self.get_page(database, table[0], user, page), 200
+
+    def get_page(self, database, table, user, page):
+        return self.select_by_user(database, table, user).order_by(lambda x: x.id). \
+            page(page, pagesize=current_app.config.get('CGRDB_PAGESIZE', 30))
+
+
+class RecordsList(JobMixin, RecordsFullList):
+    @marshal_with(RecordMetadataSchema(many=True), 200, 'records metadata')
+    def get(self, database, table, page=1, user=None):
+        return self.get_page(database, table[0], user, page), 200
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema(many=True), 201, 'record saved')
@@ -76,7 +98,7 @@ class RecordsList(DBFetch, JobMixin, MethodResource):
         if not current_user.is_dataminer:
             abort(403, message='user access deny. you do not have permission to database')
 
-        entity = getattr(database, table[0])
+        entity = self.database(database, table[0])
         data_dump = DocumentSchema(exclude=('structure', 'status', 'type'))
 
         res = []
@@ -93,40 +115,3 @@ class RecordsList(DBFetch, JobMixin, MethodResource):
 
         flush()
         return res, 201
-
-'''
-class RecordsCount(MethodResource):
-    request = RequestParser(bundle_errors=True)
-    request.add_argument('user', type=positive, help='User number. by default current user return. {error_msg}')
-
-    @swagger.operation(
-        nickname='records_count',
-        parameters=[dict(name='database', description='DataBase name: [%s]' % ', '.join(DB_DATA_LIST), required=True,
-                         allowMultiple=False, dataType='str', paramType='path'),
-                    dict(name='table', description='Table name: [molecule, reaction]', required=True,
-                         allowMultiple=False, dataType='str', paramType='path'),
-                    dict(name='user', description='user ID', required=False,
-                         allowMultiple=False, dataType='int', paramType='query')],
-        responseClass=RecordsCountFields.__name__,
-        responseMessages=[dict(code=200, message="saved data"),
-                          dict(code=400, message="user must be a positive integer or None"),
-                          dict(code=401, message="user not authenticated"),
-                          dict(code=403, message="user access deny")])
-    @request_arguments_parser(request)
-    def get(self, database, table, user=None):
-        """
-        Get user's records count
-        """
-        if user is None:
-            user = current_user.id
-        if user == current_user.id:
-            if not current_user.role_is((UserRole.ADMIN, UserRole.DATA_MANAGER, UserRole.DATA_FILLER)):
-                abort(403, message='user access deny. You do not have permission to database')
-        elif not current_user.role_is((UserRole.ADMIN, UserRole.DATA_MANAGER)):
-            abort(403, message="user access deny. You do not have permission to see another user's data")
-
-        entity = getattr(Loader.get_schema(database),
-                         'ReactionConditions' if table == 'REACTION' else 'MoleculeProperties')
-        q = entity.select(lambda x: x.user_id == user).count()
-        return dict(data=q, pages=ceil(q / RESULTS_PER_PAGE))
-'''

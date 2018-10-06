@@ -18,18 +18,21 @@
 #
 from CGRdb import Loader
 from flask import current_app
+from flask_login import login_required
+from pony.orm import db_session
 from werkzeug.routing import BaseConverter, ValidationError
 from ...utils import abort
 
 
 class DBFetch:
+    decorators = (login_required, db_session)
+
     @staticmethod
-    def database(name):
-        db_list = current_app.config['CGRDB_DB_SCHEMAS']
-        if name not in db_list:
+    def database(name, table):
+        if name not in current_app.config['CGRDB_DB_SCHEMAS']:
             abort(404, 'database not found')
-        db = Loader(**current_app.config['CGRDB_DB_CONFIG'])
-        return db[name]
+
+        return getattr(Loader(**current_app.config['CGRDB_DB_CONFIG'])[name], table)
 
 
 class DBTableConverter(BaseConverter):
