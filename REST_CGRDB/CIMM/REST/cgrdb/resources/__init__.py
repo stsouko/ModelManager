@@ -17,3 +17,4 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from .list import RecordsList, RecordsFullList, RecordsCount
+from .record import Record

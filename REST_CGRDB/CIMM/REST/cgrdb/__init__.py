@@ -17,9 +17,24 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from flask import Blueprint
+from flask_login import LoginManager
 from .resources import *
 from .resources.common import DBTableConverter
+from ..jobs import User as UserMixin
 from ..utils import Documentation
+
+
+class User(UserMixin):
+    @property
+    def is_dataminer(self):
+        return True
+
+
+def setup_login(state):
+    app = state.app
+    if not hasattr(app, 'login_manager'):  # set login manager ad-hoc
+        app.config['LOGIN_DISABLED'] = True
+        LoginManager(app).anonymous_user = User
 
 
 def setup_documentation(state):
@@ -27,17 +42,35 @@ def setup_documentation(state):
     Documentation.register(RecordsList, endpoint='list', blueprint=bp)
     Documentation.register(RecordsFullList, endpoint='list_full', blueprint=bp)
     Documentation.register(RecordsCount, endpoint='list_count', blueprint=bp)
+    Documentation.register(Record, endpoint='record', blueprint=bp)
 
 
 blueprint = Blueprint('CIMM_CGRDB_API', __name__)
 blueprint.record_once(setup_documentation)
+blueprint.record_once(setup_login)
 blueprint.record_once(lambda state: state.app.url_map.converters.update(DBTable=DBTableConverter))
+
+blueprint.add_url_rule('/<string:database>/<DBTable:table>/<int(min=1):record>', view_func=Record.as_view('record'))
 
 record_list_view = RecordsList.as_view('list')
 blueprint.add_url_rule('/<string:database>/<DBTable:table>', view_func=record_list_view)
 blueprint.add_url_rule('/<string:database>/<DBTable:table>/pages/<int(min=1):page>',
                        view_func=record_list_view, methods=['GET'])
-blueprint.add_url_rule('/<string:database>/<DBTable:table>/users/<int(min=1):user>',
+blueprint.add_url_rule('/<string:database>/users/<int(min=1):user>/<DBTable:table>',
                        view_func=record_list_view, methods=['GET'])
-blueprint.add_url_rule('/<string:database>/<DBTable:table>/users/<int(min=1):user>/pages/<int(min=1):page>',
+blueprint.add_url_rule('/<string:database>/users/<int(min=1):user>/<DBTable:table>/pages/<int(min=1):page>',
                        view_func=record_list_view, methods=['GET'])
+
+record_list_full_view = RecordsFullList.as_view('list_full')
+blueprint.add_url_rule('/<string:database>/<DBTable:table>/full', view_func=record_list_full_view)
+blueprint.add_url_rule('/<string:database>/<DBTable:table>/pages/<int(min=1):page>/full',
+                       view_func=record_list_full_view)
+blueprint.add_url_rule('/<string:database>/users/<int(min=1):user>/<DBTable:table>/full',
+                       view_func=record_list_full_view)
+blueprint.add_url_rule('/<string:database>/users/<int(min=1):user>/<DBTable:table>/pages/<int(min=1):page>/full',
+                       view_func=record_list_full_view)
+
+record_list_count_view = RecordsCount.as_view('list_count')
+blueprint.add_url_rule('/<string:database>/<DBTable:table>/pages', view_func=record_list_count_view)
+blueprint.add_url_rule('/<string:database>/users/<int(min=1):user>/<DBTable:table>/pages',
+                       view_func=record_list_count_view)

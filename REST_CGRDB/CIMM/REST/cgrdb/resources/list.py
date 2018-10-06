@@ -33,11 +33,11 @@ from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
 
 @doc(params={'database': {'description': 'database name', 'type': 'string'},
              'table': {'description': 'table name', 'type': 'string'}})
+@marshal_with(None, 401, 'user not authenticated')
+@marshal_with(None, 403, 'user access deny')
 class RecordsCount(DBFetch, MethodResource):
     @doc(params={'user': {'description': 'user id', 'type': 'integer'}})
     @marshal_with(CountSchema, 200, 'records amount')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'user/database/table not found')
     def get(self, database, table, user=None):
         """
@@ -81,8 +81,6 @@ class RecordsList(JobMixin, RecordsFullList):
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema(many=True), 201, 'record saved')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
     @marshal_with(None, 406, 'task status/type is invalid. only validated populating tasks acceptable')
     @marshal_with(None, 500, 'modeling/dispatcher server error')

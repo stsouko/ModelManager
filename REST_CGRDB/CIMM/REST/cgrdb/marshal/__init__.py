@@ -59,8 +59,8 @@ class RecordSchema(RecordMetadataSchema):
     description = Nested(DescriptionSchema, many=True, attribute='data.description', default=list)
     additives = Nested(AdditiveSchema, many=True, attribute='data.additives', default=list)
 
-    status = Constant(StructureStatus.CLEAN.value,
-                      description=f'state of job. only {StructureStatus.CLEAN.value} - {StructureStatus.CLEAN.name}')
+    status = Constant(StructureStatus.CLEAN.value, description=f'state of structure. '
+                      f'only {StructureStatus.CLEAN.value} - {StructureStatus.CLEAN.name}')
     type = Function(lambda x: isinstance(x, ReactionContainer) and StructureType.REACTION.value or
                     StructureType.MOLECULE.value, attribute='structure.structure',
                     description='type of validated structure')

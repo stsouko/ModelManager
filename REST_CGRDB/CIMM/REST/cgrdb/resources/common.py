@@ -27,12 +27,15 @@ from ...utils import abort
 class DBFetch:
     decorators = (login_required, db_session)
 
-    @staticmethod
-    def database(name, table):
-        if name not in current_app.config['CGRDB_DB_SCHEMAS']:
-            abort(404, 'database not found')
+    def database(self, name, table):
+        if self.__loader is None:
+            if name not in current_app.config['CGRDB_DB_SCHEMAS']:
+                abort(404, 'database not found')
+            self.__loader = getattr(Loader(**current_app.config['CGRDB_DB_CONFIG'])[name], table)
 
-        return getattr(Loader(**current_app.config['CGRDB_DB_CONFIG'])[name], table)
+        return self.__loader
+
+    __loader = None
 
 
 class DBTableConverter(BaseConverter):
