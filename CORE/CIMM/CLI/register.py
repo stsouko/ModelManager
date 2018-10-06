@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, FileType
+from argparse import ArgumentDefaultsHelpFormatter, FileType
 from configparser import ConfigParser
 from requests import Session
 from shutil import rmtree
@@ -24,26 +24,25 @@ from tempfile import mkdtemp
 from traceback import format_exc
 from warnings import warn
 from ..models import loader
-from ..version import version
 
 
-parser = ArgumentParser(description='CIMM worker', epilog='(c) Dr. Ramil Nugmanov',
-                        formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument('--version', '-v', action='version', version=version(), default=False)
-parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
-parser.add_argument('--config', '-c', type=FileType(), help='workers configuration file')
-parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
-parser.add_argument('--redis_pass', '-rp', type=str)
-parser.add_argument('--redis_port', '-rr', default=6379, type=int)
-parser.add_argument('--url', '-u', type=str, help='dispatcher url', required=True)
-parser.add_argument('--auth_url', '-au', type=str, help='dispatcher auth url')
-parser.add_argument('--admin_user', '-aus', type=str, help='admin username')
-parser.add_argument('--admin_pass', '-apw', type=str, help='admin password')
+def cmd(subparsers):
+    parser = subparsers.add_parser('register', help='register new models in db',
+                                   formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
+    parser.add_argument('--config', '-c', type=FileType(), help='workers configuration file')
+    parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
+    parser.add_argument('--redis_pass', '-rp', type=str)
+    parser.add_argument('--redis_port', '-rr', default=6379, type=int)
+    parser.add_argument('--url', '-u', type=str, help='dispatcher url', required=True)
+    parser.add_argument('--auth_url', '-au', type=str, help='dispatcher auth url')
+    parser.add_argument('--admin_user', '-aus', type=str, help='admin username')
+    parser.add_argument('--admin_pass', '-apw', type=str, help='admin password')
+
+    parser.set_defaults(func=run)
 
 
-def run():
-    args = parser.parse_args()
-
+def run(args):
     if args.config is None:
         redis_host = args.redis_host
         redis_pass = args.redis_pass

@@ -31,7 +31,7 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
-    entry_points={'console_scripts': ['cimm_worker=CIMM.CLI.worker:run', 'cimm_register=CIMM.CLI.register:run']},
+    entry_points={'console_scripts': ['cimm=CIMM.CLI.loader:run']},
     package_data={'CIMM.models.preparer': ['step_1.xml', 'step_2.xml'], 'CIMM': ['additives.json']},
     install_requires=['CIMtools>=1.4.7,<1.5'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},

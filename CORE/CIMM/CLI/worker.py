@@ -16,32 +16,25 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, FileType
+from argparse import ArgumentDefaultsHelpFormatter, FileType
 from configparser import ConfigParser
 from redis import Redis
 from rq import Connection, Worker
-from ..version import version
 
 
-parser = ArgumentParser(description='CIMM worker', epilog='(c) Dr. Ramil Nugmanov',
-                        formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument('--version', '-v', action='version', version=version(), default=False)
-parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
-parser.add_argument('--config', '-c', default=None, type=FileType(), help='workers configuration file')
-parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
-parser.add_argument('--redis_pass', '-rp', default=None, type=str)
-parser.add_argument('--redis_port', '-rr', default=6379, type=int)
+def cmd(subparsers):
+    parser = subparsers.add_parser('worker', help='start models worker',
+                                   formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
+    parser.add_argument('--config', '-c', default=None, type=FileType(), help='workers configuration file')
+    parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
+    parser.add_argument('--redis_pass', '-rp', default=None, type=str)
+    parser.add_argument('--redis_port', '-rr', default=6379, type=int)
+
+    parser.set_defaults(func=run)
 
 
-class EventWorker(Worker):
-    def execute_job(self, job, queue):
-        super().execute_job(job, queue)
-        self.connection.publish('done_jobs', job.id)
-
-
-def run():
-    args = parser.parse_args()
-
+def run(args):
     if args.config is None:
         redis_host = args.redis_host
         redis_pass = args.redis_pass
@@ -57,3 +50,9 @@ def run():
 
     with Connection(Redis(host=redis_host, port=redis_port, password=redis_pass)):
         EventWorker([args.name]).work()
+
+
+class EventWorker(Worker):
+    def execute_job(self, job, queue):
+        super().execute_job(job, queue)
+        self.connection.publish('done_jobs', job.id)
