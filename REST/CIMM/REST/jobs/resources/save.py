@@ -101,9 +101,8 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(SavedListSchema(many=True), 200, 'saved tasks')
     @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'page not found')
-    def get(self, page):
+    def get(self, page=1):
         """
         current user's saved tasks
         """
@@ -111,7 +110,7 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
         q = self.tasks.select(lambda x: x.user == current_user.id)
         if q.count() <= (page - 1) * chunk:
             abort(404, message='page not found')
-        return list(q.page(page, pagesize=chunk))
+        return q.page(page, pagesize=chunk)
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(SavedMetadataSchema, 201, 'processed task saved')
