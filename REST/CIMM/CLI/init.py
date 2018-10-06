@@ -26,7 +26,7 @@ def cmd(subparsers):
     parser.add_argument('--user', '-u', help='admin login')
     parser.add_argument('--password', '-p', help='admin pass')
     parser.add_argument('--host', '-H', help='host name')
-    parser.add_argument('--port', '-P', help='host name')
+    parser.add_argument('--port', '-P', help='database port')
     parser.add_argument('--base', '-b', help='database name')
     parser.add_argument('--name', '-n', help='schema name', required=True)
 
