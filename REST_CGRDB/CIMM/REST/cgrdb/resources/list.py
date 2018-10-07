@@ -47,15 +47,12 @@ class RecordsCount(DBFetch, MethodResource):
         return dict(total=q, pages=ceil(q / current_app.config.get('CGRDB_PAGESIZE', 30))), 200
 
     def select_by_user(self, database, table, user):
-        if not current_user.is_dataminer:
-            abort(403, message='user access deny. you do not have permission to database')
-
+        entity, access = self.database(database, table)
         if user is None:
             user = current_user.id
-        elif user != current_user.id and not current_user.is_admin:
+        elif user != current_user.id and not access:
             abort(403, message="user access deny. you do not have permission to see another user's data")
-
-        return self.database(database, table).select(lambda x: x.user_id == user)
+        return entity.select(lambda x: x.user_id == user)
 
 
 class RecordsFullList(RecordsCount, MethodResource):
@@ -81,7 +78,7 @@ class RecordsList(JobMixin, RecordsFullList):
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema(many=True), 201, 'record saved')
-    @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
+    @marshal_with(None, 404, 'user/database/table/task not found. perhaps this task has already been removed')
     @marshal_with(None, 406, 'task status/type is invalid. only validated populating tasks acceptable')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
     @marshal_with(None, 512, 'task not ready')
@@ -93,10 +90,7 @@ class RecordsList(JobMixin, RecordsFullList):
         if task['type'] != TaskType.POPULATING:
             abort(406, message='invalid task type')
 
-        if not current_user.is_dataminer:
-            abort(403, message='user access deny. you do not have permission to database')
-
-        entity = self.database(database, table[0])
+        entity = self.database(database, table[0])[0]
         data_dump = DocumentSchema(exclude=('structure', 'status', 'type'))
 
         res = []

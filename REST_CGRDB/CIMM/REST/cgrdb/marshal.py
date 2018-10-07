@@ -19,10 +19,19 @@
 from CGRtools.containers import ReactionContainer
 from marshmallow import Schema, ValidationError, pre_dump
 from marshmallow.fields import String, Integer, Float, Nested, DateTime, Constant, Function
-from ...jobs.marshal.fields import StructureField, IntEnumField
-from ...jobs.marshal.documents import DescriptionSchema
-from ....additives import Additive
-from ....constants import StructureStatus, StructureType, AdditiveType
+from ..jobs.marshal.fields import StructureField, IntEnumField
+from ..jobs.marshal.documents import DescriptionSchema
+from ...additives import Additive
+from ...constants import StructureStatus, StructureType, AdditiveType
+
+
+class UserSchema(Schema):
+    name = 1
+
+
+class DatabaseSchema(Schema):
+    id = Integer()
+    name = String()
 
 
 class AdditiveSchema(Schema):

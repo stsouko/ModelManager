@@ -16,11 +16,12 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from CGRdb import Loader
+
 from flask import current_app
-from flask_login import login_required
-from pony.orm import db_session
+from flask_login import login_required, current_user
+from pony.orm import db_session, ObjectNotFound
 from werkzeug.routing import BaseConverter, ValidationError
+from .. import database
 from ...utils import abort
 
 
@@ -28,14 +29,26 @@ class DBFetch:
     decorators = (login_required, db_session)
 
     def database(self, name, table):
-        if self.__loader is None:
-            if name not in current_app.config['CGRDB_DB_SCHEMAS']:
+        if self.__table is None:
+            db = getattr(database, current_app.config['CGRDB_DB_SCHEMA'])
+            try:
+                user = db.User[current_user.id]
+            except ObjectNotFound:
+                abort(404, 'user not found')
+
+            base = db.DataBase.get(name=name)
+            if not base:
                 abort(404, 'database not found')
-            self.__loader = getattr(Loader(**current_app.config['CGRDB_DB_CONFIG'])[name], table)
 
-        return self.__loader
+            access = db.UserBase.get(user=user, database=base)
+            if not access:
+                abort(403, 'user access to database denied')
 
-    __loader = None
+            self.__table = getattr(current_app.config['CGRDB_LOADER'][name], table), access.is_admin
+
+        return self.__table
+
+    __table = None
 
 
 class DBTableConverter(BaseConverter):

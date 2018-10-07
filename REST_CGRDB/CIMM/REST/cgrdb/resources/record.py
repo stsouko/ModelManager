@@ -33,7 +33,7 @@ from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
              'record': {'description': 'record id', 'type': 'int'}})
 @marshal_with(None, 401, 'user not authenticated')
 @marshal_with(None, 403, 'user access deny')
-@marshal_with(None, 404, 'database/table/record not found')
+@marshal_with(None, 404, 'user/database/table/record not found')
 class Record(DBFetch, JobMixin, MethodResource):
     @marshal_with(RecordSchema, 200, 'metadata record')
     def get(self, database, table, record):
@@ -56,9 +56,6 @@ class Record(DBFetch, JobMixin, MethodResource):
         task = self.fetch(task, TaskStatus.PREPARED)
         if task['type'] != TaskType.POPULATING:
             abort(406, message='invalid task type')
-
-        if not current_user.is_dataminer:
-            abort(403, message='user access deny. you do not have permission to database')
 
         record = self.get_record(database, table[0], record)
         data = task['structures'][0]
@@ -100,14 +97,12 @@ class Record(DBFetch, JobMixin, MethodResource):
         return data, 202
 
     def get_record(self, database, table, record):
-        if not current_user.is_dataminer:
-            abort(403, message='user access deny. you do not have permission to database')
-
+        entity, access = self.database(database, table)
         try:
-            data = self.database(database, table)[record]
+            data = entity[record]
         except ObjectNotFound:
             abort(404, message='invalid record id')
 
-        if data.user_id != current_user.id and not current_user.is_admin:
+        if data.user_id != current_user.id and not access:
             abort(403, message="user access deny. you do not have permission to see another user's data")
         return data
