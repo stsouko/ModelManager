@@ -19,6 +19,7 @@
 from collections import Counter
 from datetime import datetime
 from flask import current_app
+from flask_apispec import MethodResource, marshal_with
 from flask_login import current_user, login_required
 from pickle import dumps, loads
 from pony.orm import db_session
@@ -29,7 +30,8 @@ from ...utils import abort
 from ....constants import TaskStatus
 
 
-class JobMixin:
+@marshal_with(None, 401, 'user not authenticated')
+class JobMixin(MethodResource):
     decorators = (login_required, db_session)
 
     @staticmethod
@@ -104,7 +106,7 @@ class JobMixin:
         else:
             chunks = sorted(set(chunks.values()))
             if page > len(chunks):
-                abort(404, message='page not found')
+                abort(404, 'page not found')
 
             ch = loads(self.redis.get(chunks[page - 1]))
             tmp = [ch[s_id] for s_id in sorted(ch)]
@@ -115,20 +117,20 @@ class JobMixin:
         task = self.redis.get(task_id)
 
         if task is None:
-            abort(404, message='invalid task id. perhaps this task has already been removed')
+            abort(404, 'invalid task id. perhaps this task has already been removed')
 
         task = loads(task)
 
         if task['status'] != status:
-            abort(406, message='task status is invalid. task status is [%s]' % task['status'].name)
+            abort(404, 'task with valid status not found')
 
         if task['user'] != current_user.id:
-            abort(403, message='user access deny')
+            abort(403, 'user access deny')
 
         if task['jobs']:
             jobs = [self.models.fetch_job(x) for x in task['jobs']]
             if any(x.is_queued or x.is_started for x in jobs):
-                abort(512, message='PROCESSING.Task not ready')
+                abort(512, 'PROCESSING.Task not ready')
 
             ended_at = None
             flag = True

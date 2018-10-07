@@ -18,7 +18,7 @@
 #
 from flask import send_from_directory, current_app, url_for
 from flask.views import MethodView
-from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
+from flask_apispec import use_kwargs, marshal_with, doc
 from marshmallow.fields import String, Url, Field
 from pathlib import Path
 from uuid import uuid4
@@ -37,12 +37,11 @@ class TaskTypeConverter(BaseConverter):
             raise ValidationError(e)
 
 
-class CreateTask(JobMixin, MethodResource):
+class CreateTask(JobMixin):
     @doc(params={'_type': {'description': 'task type id: ' + ', '.join(f'{x.value} - {x.name}' for x in TaskType),
                            'type': 'integer'}})
     @use_kwargs(CreatingDocumentSchema(many=True), locations=('json',))
     @marshal_with(MetadataSchema, 201, 'validation task created')
-    @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 422, 'invalid structure data')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
     def post(self, *data, _type):
@@ -67,12 +66,11 @@ class CreateTask(JobMixin, MethodResource):
         return self.save(task_id, _type, TaskStatus.PREPARING, [job_id]), 201
 
 
-class UploadTask(JobMixin, MethodResource):
+class UploadTask(JobMixin):
     @use_kwargs({'file_path': String(attribute='file.path'), 'file_url': Url(attribute='file.url'),
                  'structures': Field()}, locations=('files', ))
     @marshal_with(MetadataSchema, 201, 'validation task created')
     @marshal_with(None, 400, 'structure file required')
-    @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
     def post(self, structures=None, file_url=None, file_path=None):
         """
@@ -127,7 +125,7 @@ class UploadTask(JobMixin, MethodResource):
                 file_url = url_for('.batch', file=file_name, _external=True)
 
             if file_url is None:
-                abort(400, message='structure file required')
+                abort(400, 'structure file required')
         try:
             job_id, task_id = self.enqueue(preparer, file_url, runner='convert')
         except ConnectionError:

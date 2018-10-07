@@ -16,30 +16,18 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask_apispec import MethodResource, marshal_with, use_kwargs
-from flask_login import current_user
-from functools import wraps
+from flask_apispec import marshal_with, use_kwargs
 from pony.orm import flush
 from time import sleep
 from werkzeug.exceptions import HTTPException
 from .common import JobMixin
 from ..marshal import DataBaseModelSchema, DeployModelSchema, PreparingDocumentSchema
-from ...utils import abort
+from ...utils import abort, admin
 from ....constants import ModelType, TaskStatus, TaskType, StructureStatus, StructureType
 
 
-def admin(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if current_user.is_admin:
-            return f(*args, **kwargs)
-        return abort(401, message='login required')
-    return wrapper
-
-
-class AvailableModels(JobMixin, MethodResource):
+class AvailableModels(JobMixin):
     @marshal_with(DataBaseModelSchema(many=True), 200, 'models list')
-    @marshal_with(None, 401, 'user not authenticated')
     def get(self):
         """
         get available models list
@@ -49,8 +37,9 @@ class AvailableModels(JobMixin, MethodResource):
     @admin
     @use_kwargs(DeployModelSchema(many=True), locations=('json',))
     @marshal_with(DataBaseModelSchema(many=True), 201, 'accepted models list')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 500, 'dispatcher/modeling server error')
+    @marshal_with(None, 403, 'access denied')
+    @marshal_with(None, 422, 'invalid data')
+    @marshal_with(None, 500, 'modeling/dispatcher server error')
     def post(self, *data):
         preparer = self.models.select(lambda x: x._type == ModelType.PREPARER.value).first()
         if preparer is None:

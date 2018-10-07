@@ -18,6 +18,8 @@
 #
 from flask_apispec import FlaskApiSpec
 from flask_apispec.extension import make_apispec
+from flask_login import current_user
+from functools import wraps
 from werkzeug.exceptions import HTTPException, Aborter
 
 
@@ -58,3 +60,12 @@ class Documentation:
         self.init_app(app)
 
     __doc = FlaskApiSpec()
+
+
+def admin(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if current_user.is_admin:
+            return f(*args, **kwargs)
+        return abort(403, 'access denied')
+    return wrapper

@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
+from flask_apispec import use_kwargs, marshal_with, doc
 from .common import dynamic_docstring, JobMixin
 from ..marshal import PreparingDocumentSchema, MetadataSchema, PreparedSchema, ExtendedMetadataSchema
 from ...utils import abort
@@ -24,15 +24,23 @@ from ....constants import ModelType, TaskStatus, StructureStatus, StructureType,
 
 
 @doc(params={'task': {'description': 'task id', 'type': 'string'}})
-class Prepare(JobMixin, MethodResource):
+@marshal_with(None, 403, 'user access deny')
+@marshal_with(None, 404, 'invalid task id/status')
+@marshal_with(None, 500, 'modeling/dispatcher server error')
+@marshal_with(None, 512, 'task not ready')
+class PrepareMetadata(JobMixin):
+    @marshal_with(ExtendedMetadataSchema, 200, 'validated task')
+    def get(self, task):
+        """
+        get task metadata
+        """
+        return self.fetch_meta(task, TaskStatus.PREPARED), 200
+
+
+class Prepare(PrepareMetadata):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(PreparedSchema, 200, 'validated task')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id or page not found')
-    @marshal_with(None, 406, 'task status is invalid. only validation tasks acceptable')
-    @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @marshal_with(None, 512, 'task not ready')
+    @marshal_with(None, 404, 'invalid task id/status or page not found')
     @dynamic_docstring(ModelType.PREPARER, StructureStatus.CLEAN, StructureStatus.RAW, StructureStatus.HAS_ERROR,
                        ResultType.TEXT, StructureType.REACTION, StructureType.MOLECULE)
     def get(self, task, page=None):
@@ -63,13 +71,7 @@ class Prepare(JobMixin, MethodResource):
 
     @use_kwargs(PreparingDocumentSchema(many=True), locations=('json',))
     @marshal_with(MetadataSchema, 201, 'revalidation task created')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
-    @marshal_with(None, 406, 'task status is invalid. only validation tasks acceptable')
     @marshal_with(None, 422, 'invalid structure data')
-    @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @marshal_with(None, 512, 'task not ready')
     @dynamic_docstring(StructureStatus.HAS_ERROR)
     def post(self, *data, task):
         """
@@ -133,7 +135,7 @@ class Prepare(JobMixin, MethodResource):
                     continue
 
         if not need_preparing:
-            abort(422, message='invalid structure data')
+            abort(422, 'invalid structure data')
 
         try:
             job_id, task_id = self.enqueue(preparer, need_preparing)
@@ -141,19 +143,3 @@ class Prepare(JobMixin, MethodResource):
             abort(500, 'modeling server error')
 
         return self.save(task_id, task['type'], TaskStatus.PREPARING, [job_id], ready_modeling), 201
-
-
-class PrepareMetadata(JobMixin, MethodResource):
-    @doc(params={'task': {'description': 'task id', 'type': 'string'}})
-    @marshal_with(ExtendedMetadataSchema, 200, 'saved data')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id')
-    @marshal_with(None, 406, 'task status is invalid. only validation tasks acceptable')
-    @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @marshal_with(None, 512, 'task not ready')
-    def get(self, task):
-        """
-        get task metadata
-        """
-        return self.fetch_meta(task, TaskStatus.PREPARED), 200

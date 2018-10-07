@@ -103,7 +103,7 @@ saved_list_view = SavedList.as_view('saves')
 blueprint.add_url_rule('/saves/<string:task>', view_func=saved_view)
 blueprint.add_url_rule('/saves/<string:task>/pages/<int(min=1):page>', view_func=saved_view, methods=['GET'])
 blueprint.add_url_rule('/saves/<string:task>/meta', view_func=SavedMetadata.as_view('save_meta'))
-blueprint.add_url_rule('/saves', view_func=saved_list_view, methods=['POST'])
+blueprint.add_url_rule('/saves', view_func=saved_list_view)
 blueprint.add_url_rule('/saves/pages/<int(min=1):page>', view_func=saved_list_view, methods=['GET'])
 blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count'))
 

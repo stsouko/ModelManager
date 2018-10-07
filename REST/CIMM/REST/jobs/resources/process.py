@@ -17,7 +17,7 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from collections import defaultdict
-from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
+from flask_apispec import use_kwargs, marshal_with, doc
 from uuid import uuid4
 from .common import dynamic_docstring, JobMixin
 from ..marshal import ProcessingDocumentSchema, MetadataSchema, ProcessedSchema, ExtendedMetadataSchema
@@ -26,15 +26,23 @@ from ....constants import TaskStatus, StructureStatus, TaskType
 
 
 @doc(params={'task': {'description': 'task id', 'type': 'string'}})
-class Process(JobMixin, MethodResource):
+@marshal_with(None, 403, 'user access deny')
+@marshal_with(None, 500, 'modeling/dispatcher server error')
+@marshal_with(None, 512, 'task not ready')
+class ProcessMetadata(JobMixin):
+    @marshal_with(ExtendedMetadataSchema, 200, 'processed task')
+    @marshal_with(None, 404, 'invalid task id/status')
+    def get(self, task):
+        """
+        get task metadata
+        """
+        return self.fetch_meta(task, TaskStatus.PROCESSED), 200
+
+
+class Process(ProcessMetadata):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(ProcessedSchema, 200, 'processed task')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id or page not found')
-    @marshal_with(None, 406, 'task status is invalid. only processing tasks acceptable')
-    @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @marshal_with(None, 512, 'task not ready')
+    @marshal_with(None, 404, 'invalid task id/status or page not found')
     def get(self, task, page=None):
         """
         Task with results of structures processing
@@ -46,13 +54,8 @@ class Process(JobMixin, MethodResource):
 
     @use_kwargs(ProcessingDocumentSchema(many=True), locations=('json',))
     @marshal_with(MetadataSchema, 201, 'processing task created')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
-    @marshal_with(None, 406, 'task status/type is invalid. only validation stage searching/modeling tasks acceptable')
+    @marshal_with(None, 404, 'task is/status is invalid. only validation stage searching/modeling tasks acceptable')
     @marshal_with(None, 422, 'invalid structure data')
-    @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @marshal_with(None, 512, 'task not ready')
     @dynamic_docstring(StructureStatus.HAS_ERROR)
     def post(self, *data, task):
         """
@@ -65,7 +68,7 @@ class Process(JobMixin, MethodResource):
         """
         task = self.fetch(task, TaskStatus.PREPARED)
         if task['type'] == TaskType.POPULATING:
-            abort(406, message='invalid task type')
+            abort(406, 'invalid task type')
 
         prepared = {s['structure']: s for s in task['structures']}
         update = {x['structure']: x for x in data}
@@ -91,7 +94,7 @@ class Process(JobMixin, MethodResource):
                         ready_modeling[m].append(ps)
 
         if not ready_modeling:
-            abort(422, message='invalid data')
+            abort(422, 'invalid data')
 
         task_id = str(uuid4())
         jobs = []
@@ -105,19 +108,3 @@ class Process(JobMixin, MethodResource):
             abort(500, 'modeling server error. all models not accessible')
 
         return self.save(task_id, task['type'], TaskStatus.PROCESSING, jobs), 201
-
-
-class ProcessMetadata(JobMixin, MethodResource):
-    @doc(params={'task': {'description': 'task id', 'type': 'string'}})
-    @marshal_with(ExtendedMetadataSchema, 200, 'saved data')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id')
-    @marshal_with(None, 406, 'task status is invalid. only processed tasks acceptable')
-    @marshal_with(None, 500, 'modeling/dispatcher server error')
-    @marshal_with(None, 512, 'task not ready')
-    def get(self, task):
-        """
-        get task metadata
-        """
-        return self.fetch_meta(task, TaskStatus.PROCESSED), 200
