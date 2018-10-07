@@ -17,8 +17,8 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CGRtools.containers import ReactionContainer
-from marshmallow import Schema, ValidationError, pre_dump
-from marshmallow.fields import String, Integer, Float, Nested, DateTime, Constant, Function
+from marshmallow import Schema, ValidationError, pre_dump, post_load
+from marshmallow.fields import String, Integer, Float, Nested, DateTime, Constant, Function, Boolean
 from ..jobs.marshal.fields import StructureField, IntEnumField
 from ..jobs.marshal.documents import DescriptionSchema
 from ...additives import Additive
@@ -26,12 +26,19 @@ from ...constants import StructureStatus, StructureType, AdditiveType
 
 
 class UserSchema(Schema):
-    name = 1
+    id = Integer()
+    name = String(required=True)
 
 
 class DatabaseSchema(Schema):
-    id = Integer()
-    name = String()
+    id = Integer(attribute='database.id', dump_only=True)
+    name = String(required=True, attribute='database.name')
+    is_admin = Boolean(missing=False)
+
+    @post_load
+    def _fix_load(self, obj):
+        obj.update(**obj.pop('database'))
+        return obj
 
 
 class AdditiveSchema(Schema):

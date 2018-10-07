@@ -18,37 +18,47 @@
 #
 
 from flask import current_app
-from flask_login import login_required, current_user
-from pony.orm import db_session, ObjectNotFound
+from flask_apispec import MethodResource, marshal_with
+from flask_login import current_user, login_required
+from pony.orm import ObjectNotFound, db_session
 from werkzeug.routing import BaseConverter, ValidationError
 from .. import database
 from ...utils import abort
 
 
-class DBFetch:
+@marshal_with(None, 401, 'user not authenticated')
+class DataBaseMixin(MethodResource):
     decorators = (login_required, db_session)
 
-    def database(self, name, table):
+    @property
+    def database(self):
+        if self.__database is None:
+            self.__database = getattr(database, current_app.config['CGRDB_DB_SCHEMA'])
+        return self.__database
+
+    def structure_table(self, name, table):
         if self.__table is None:
-            db = getattr(database, current_app.config['CGRDB_DB_SCHEMA'])
             try:
-                user = db.User[current_user.id]
+                user = self.database.User[current_user.id]
             except ObjectNotFound:
                 abort(404, 'user not found')
 
-            base = db.DataBase.get(name=name)
+            base = self.database.DataBase.get(name=name)
             if not base:
                 abort(404, 'database not found')
 
-            access = db.UserBase.get(user=user, database=base)
-            if not access:
-                abort(403, 'user access to database denied')
+            if current_user.is_admin:
+                access = current_user
+            else:
+                access = self.database.UserBase.get(user=user, database=base)
+                if not access:
+                    abort(403, 'user access to database denied')
 
             self.__table = getattr(current_app.config['CGRDB_LOADER'][name], table), access.is_admin
 
         return self.__table
 
-    __table = None
+    __table = __database = None
 
 
 class DBTableConverter(BaseConverter):

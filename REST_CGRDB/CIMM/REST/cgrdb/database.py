@@ -34,7 +34,7 @@ def __getattr__(schema):
 
     class User(db.Entity):
         _table_ = (schema, 'user')
-        id = PrimaryKey(int)
+        id = PrimaryKey(int, auto=True)
         name = Required(str)
         databases = Set('UserBase')
 

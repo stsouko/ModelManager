@@ -16,11 +16,11 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
+from flask_apispec import use_kwargs, marshal_with, doc
 from flask_login import current_user
 from marshmallow.fields import String
 from pony.orm import ObjectNotFound
-from .common import DBFetch
+from .common import DataBaseMixin
 from ..marshal import RecordMetadataSchema, RecordSchema
 from ...jobs.marshal.documents import DocumentSchema
 from ...jobs.resources.common import JobMixin
@@ -31,10 +31,9 @@ from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
 @doc(params={'database': {'description': 'database name', 'type': 'string'},
              'table': {'description': 'table name', 'type': 'string'},
              'record': {'description': 'record id', 'type': 'int'}})
-@marshal_with(None, 401, 'user not authenticated')
 @marshal_with(None, 403, 'user access deny')
 @marshal_with(None, 404, 'user/database/table/record not found')
-class Record(DBFetch, JobMixin, MethodResource):
+class Record(DataBaseMixin, JobMixin):
     @marshal_with(RecordSchema, 200, 'metadata record')
     def get(self, database, table, record):
         """
@@ -63,7 +62,7 @@ class Record(DBFetch, JobMixin, MethodResource):
             abort(400, message='task structure has errors or invalid type')
 
         structure = data['data']
-        entity = self.database(database, table[0])
+        entity = self.structure_table(database, table[0])
         in_db = entity.find_structure(structure)
 
         if in_db != record.structure:
@@ -97,7 +96,7 @@ class Record(DBFetch, JobMixin, MethodResource):
         return data, 202
 
     def get_record(self, database, table, record):
-        entity, access = self.database(database, table)
+        entity, access = self.structure_table(database, table)
         try:
             data = entity[record]
         except ObjectNotFound:

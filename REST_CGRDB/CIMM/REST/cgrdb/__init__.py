@@ -40,6 +40,8 @@ def setup_documentation(state):
     Documentation.register(RecordsCount, endpoint='list_count', blueprint=bp)
     Documentation.register(Record, endpoint='record', blueprint=bp)
     Documentation.register(DataBases, endpoint='bases', blueprint=bp)
+    Documentation.register(User, endpoint='user', blueprint=bp)
+    Documentation.register(Users, endpoint='users', blueprint=bp)
 
 
 blueprint = Blueprint('CIMM_CGRDB_API', __name__)
@@ -50,6 +52,9 @@ blueprint.record_once(lambda state: state.app.url_map.converters.update(DBTable=
 databases_view = DataBases.as_view('bases')
 blueprint.add_url_rule('/', view_func=databases_view, methods=['GET'])
 blueprint.add_url_rule('/users/<int(min=1):user>/', view_func=databases_view)
+
+blueprint.add_url_rule('/users', view_func=Users.as_view('users'))
+blueprint.add_url_rule('/users/<int(min=1):user>', view_func=User.as_view('user'))
 
 blueprint.add_url_rule('/<string:database>/<DBTable:table>/<int(min=1):record>', view_func=Record.as_view('record'))
 

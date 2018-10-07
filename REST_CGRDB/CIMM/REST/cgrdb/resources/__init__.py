@@ -19,3 +19,4 @@
 from .base import DataBases
 from .list import RecordsList, RecordsFullList, RecordsCount
 from .record import Record
+from .user import User, Users

@@ -16,34 +16,59 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from flask import current_app
-from flask_apispec import MethodResource, marshal_with, doc
-from flask_login import current_user, login_required
-from pony.orm import db_session, ObjectNotFound, select
-from .. import database
+from flask_apispec import marshal_with, doc, use_kwargs
+from flask_login import current_user
+from pony.orm import ObjectNotFound, flush
+from .common import DataBaseMixin
 from ..marshal import DatabaseSchema
-from ...utils import abort
+from ...utils import abort, admin
 
 
 @doc(params={'user': {'description': 'user id', 'type': 'int'}})
-class DataBases(MethodResource):
-    decorators = (login_required, db_session)
-
-    @marshal_with(DatabaseSchema, 200, 'list of databases')
-    @marshal_with(None, 401, 'user not authenticated')
+@marshal_with(None, 401, 'user not authenticated')
+@marshal_with(None, 403, 'access denied')
+@marshal_with(None, 404, 'user/database not found')
+class DataBases(DataBaseMixin):
+    @marshal_with(DatabaseSchema(many=True), 200, 'list of databases')
     def get(self, user=None):
         """
-        available models list
+        available for user database list
         """
         if user is None:
+            if current_user.is_admin:
+                return [{'database': x, 'is_admin': True} for x in self.database.DataBase.select()]
             user = current_user.id
         elif user != current_user.id and not current_user.is_admin:
             abort(403, "user access deny. you do not have permission to see another user's databases")
 
-        db = getattr(database, current_app.config['CGRDB_DB_SCHEMA'])
         try:
-            user = db.User[user]
+            user = self.database.User[user]
         except ObjectNotFound:
             abort(404, 'user not found')
 
-        return list(select(x.database for x in db.UserBase if x.user == user)), 200
+        return list(self.database.UserBase.select(lambda x: x.user == user).prefetch(self.database.DataBase)), 200
+
+    @admin
+    @use_kwargs(DatabaseSchema)
+    @marshal_with(DatabaseSchema, 201, 'database added to user')
+    @marshal_with(DatabaseSchema, 202, 'database access rights updated')
+    @marshal_with(None, 409, 'user already has this db')
+    def post(self, user, name, is_admin):
+        try:
+            user = self.database.User[user]
+        except ObjectNotFound:
+            abort(404, 'user not found')
+
+        base = self.database.DataBase.get(name=name)
+        if not base:
+            abort(404, 'database not found')
+
+        exists = self.database.UserBase.get(user=user, database=base)
+        if exists:
+            if exists.is_admin == is_admin:
+                abort(409, 'user already has this db')
+            exists.is_admin = is_admin
+            return exists, 202
+        new = self.database.UserBase(user=user, database=base)
+        flush()
+        return new, 201

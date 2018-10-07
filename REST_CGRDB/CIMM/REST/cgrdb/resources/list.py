@@ -17,12 +17,12 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from flask import current_app
-from flask_apispec import MethodResource, use_kwargs, marshal_with, doc
+from flask_apispec import use_kwargs, marshal_with, doc
 from flask_login import current_user
 from marshmallow.fields import String
 from math import ceil
 from pony.orm import flush
-from .common import DBFetch
+from .common import DataBaseMixin
 from ..marshal import RecordMetadataSchema, RecordSchema
 from ...jobs.marshal import CountSchema
 from ...jobs.marshal.documents import DocumentSchema
@@ -33,9 +33,8 @@ from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
 
 @doc(params={'database': {'description': 'database name', 'type': 'string'},
              'table': {'description': 'table name', 'type': 'string'}})
-@marshal_with(None, 401, 'user not authenticated')
 @marshal_with(None, 403, 'user access deny')
-class RecordsCount(DBFetch, MethodResource):
+class RecordsCount(DataBaseMixin):
     @doc(params={'user': {'description': 'user id', 'type': 'integer'}})
     @marshal_with(CountSchema, 200, 'records amount')
     @marshal_with(None, 404, 'user/database/table not found')
@@ -47,7 +46,7 @@ class RecordsCount(DBFetch, MethodResource):
         return dict(total=q, pages=ceil(q / current_app.config.get('CGRDB_PAGESIZE', 30))), 200
 
     def select_by_user(self, database, table, user):
-        entity, access = self.database(database, table)
+        entity, access = self.structure_table(database, table)
         if user is None:
             user = current_user.id
         elif user != current_user.id and not access:
@@ -55,7 +54,7 @@ class RecordsCount(DBFetch, MethodResource):
         return entity.select(lambda x: x.user_id == user)
 
 
-class RecordsFullList(RecordsCount, MethodResource):
+class RecordsFullList(RecordsCount):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(RecordSchema(many=True), 200, 'records data')
     @marshal_with(None, 404, 'page/user/database/table not found')
@@ -78,8 +77,8 @@ class RecordsList(JobMixin, RecordsFullList):
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema(many=True), 201, 'record saved')
-    @marshal_with(None, 404, 'user/database/table/task not found. perhaps this task has already been removed')
-    @marshal_with(None, 406, 'task status/type is invalid. only validated populating tasks acceptable')
+    @marshal_with(None, 404, 'user/database/table/task not found or type/status is invalid. '
+                             'perhaps this task has already been removed')
     @marshal_with(None, 500, 'modeling/dispatcher server error')
     @marshal_with(None, 512, 'task not ready')
     def post(self, database, table, task):
@@ -88,9 +87,9 @@ class RecordsList(JobMixin, RecordsFullList):
         """
         task = self.fetch(task, TaskStatus.PREPARED)
         if task['type'] != TaskType.POPULATING:
-            abort(406, message='invalid task type')
+            abort(404, 'invalid task type')
 
-        entity = self.database(database, table[0])[0]
+        entity = self.structure_table(database, table[0])[0]
         data_dump = DocumentSchema(exclude=('structure', 'status', 'type'))
 
         res = []
