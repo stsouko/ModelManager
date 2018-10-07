@@ -17,11 +17,11 @@
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from argparse import ArgumentDefaultsHelpFormatter
-from ..REST.jobs import database
+from ..REST.cgrdb import database
 
 
 def cmd(subparsers):
-    parser = subparsers.add_parser('init_db', help='init models db',
+    parser = subparsers.add_parser('init_access_db', help='init cgrdb user access db',
                                    formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('--user', '-u', help='admin login')
     parser.add_argument('--password', '-p', help='admin pass')
