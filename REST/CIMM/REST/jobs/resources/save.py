@@ -48,12 +48,12 @@ class SavedMixin:
 
 
 @doc(params={'task': {'description': 'task id', 'type': 'string'}})
+@marshal_with(None, 401, 'user not authenticated')
+@marshal_with(None, 403, 'user access deny')
+@marshal_with(None, 404, 'invalid task id or page not found')
 class Saved(SavedMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(SavedSchema, 200, 'saved task')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id or page not found')
     def get(self, task, page=None):
         """
         task with modeling results of structures with conditions
@@ -70,9 +70,6 @@ class Saved(SavedMixin, MethodResource):
         return dict(task=task, structures=structures), 200
 
     @marshal_with(SavedMetadataSchema, 202, 'task deleted')
-    @marshal_with(None, 401, 'user not authenticated')
-    @marshal_with(None, 403, 'user access deny')
-    @marshal_with(None, 404, 'invalid task id or page not found')
     def delete(self, task):
         """
         delete task from db
@@ -97,10 +94,10 @@ class SavedMetadata(SavedMixin, MethodResource):
         return dict(task=task, structures={'total': task.size, 'pages': ceil(task.size / chunk)}), 200
 
 
+@marshal_with(None, 401, 'user not authenticated')
 class SavedList(JobMixin, SavedMixin, MethodResource):
     @doc(params={'page': {'description': 'page number', 'type': 'integer'}})
     @marshal_with(SavedListSchema(many=True), 200, 'saved tasks')
-    @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 404, 'page not found')
     def get(self, page=1):
         """
@@ -114,7 +111,6 @@ class SavedList(JobMixin, SavedMixin, MethodResource):
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(SavedMetadataSchema, 201, 'processed task saved')
-    @marshal_with(None, 401, 'user not authenticated')
     @marshal_with(None, 403, 'user access deny')
     @marshal_with(None, 404, 'invalid task id. perhaps this task has already been removed')
     @marshal_with(None, 406, 'task status/type is invalid. only modeling tasks acceptable')

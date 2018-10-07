@@ -27,7 +27,7 @@ from ..utils import Documentation
 class User(UserMixin):
     @property
     def id(self):
-        return 0
+        return 1
 
     @property
     def is_admin(self):
@@ -35,10 +35,6 @@ class User(UserMixin):
 
     @property
     def is_authenticated(self):
-        return False
-
-    @property
-    def is_active(self):
         return False
 
     @property
