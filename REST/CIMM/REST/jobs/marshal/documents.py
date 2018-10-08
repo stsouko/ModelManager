@@ -18,7 +18,7 @@
 #
 from CGRtools.containers import ReactionContainer
 from flask import current_app
-from marshmallow import Schema, ValidationError, pre_dump, post_load, post_dump
+from marshmallow import Schema, ValidationError, pre_dump, post_load, post_dump, EXCLUDE
 from marshmallow.fields import String, Integer, Float, Nested, Boolean, Method
 from marshmallow.validate import Range
 from pony.orm import ObjectNotFound
@@ -123,6 +123,9 @@ class CreatingDocumentSchema(StructureTypeSet, EmptyCheck, Schema):
     additives = Nested(AdditiveSchema, many=True, missing=list, default=list)
     data = StructureField(required=True, description='string containing MRV or MDL RDF|SDF or SMILES|SMIRKS structure')
 
+    class Meta:
+        unknown = EXCLUDE
+
 
 class DocumentSchema(StructureTypeSet, EmptyCheck, Schema):
     temperature = Float(validate=Range(100, 600), description='temperature of media in Kelvin')
@@ -133,6 +136,9 @@ class DocumentSchema(StructureTypeSet, EmptyCheck, Schema):
                         description='structure id for mapping of changes to records in previously validated document')
     status = IntEnumField(StructureStatus, dump_only=True, description='validation status of structure')
     type = IntEnumField(StructureType, dump_only=True, description='type of validated structure')
+
+    class Meta:
+        unknown = EXCLUDE
 
 
 class PreparingDocumentSchema(DocumentSchema):
