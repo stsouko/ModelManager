@@ -4,16 +4,16 @@
 #  This file is part of CIMM (ChemoInformatics Models Manager).
 #
 #  CIMM is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU Affero General Public License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-#  GNU Affero General Public License for more details.
+#  GNU General Public License for more details.
 #
-#  You should have received a copy of the GNU Affero General Public License
+#  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
 from CIMM.version import version
@@ -22,17 +22,18 @@ from setuptools import setup
 
 
 setup(
-    name='CIMM-REST-CGRDB',
+    name='CIMM-MODELS-PREPARER',
     version=version(),
-    packages=['CIMM.CLI', 'CIMM.REST.cgrdb', 'CIMM.REST.cgrdb.resources'],
+    packages=['CIMM.models.preparer'],
     zip_safe=False,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
-    install_requires=['CIMM-REST>=1.4.1,<1.5'],
-    extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
+    package_data={'CIMM.models.preparer': ['step_1.xml', 'step_2.xml']},
+    install_requires=['CIMM-CORE>=1.4.1,<1.5', 'CIMtools>=1.4.7,<1.5'],
+    extras_require={'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="tools cgr cli",
     classifiers=['Environment :: Console',
@@ -45,7 +46,7 @@ setup(
                  'Programming Language :: Python',
                  'Programming Language :: Python :: 3',
                  'Programming Language :: Python :: 3.7'],
-    command_options={'build_sphinx': {'project': ('setup.py', 'CIMM-REST-CGRDB'),
+    command_options={'build_sphinx': {'project': ('setup.py', 'CIMM-MODELS-PREPARER'),
                                       'version': ('setup.py', version()), 'source_dir': ('setup.py', 'doc'),
                                       'build_dir':  ('setup.py', 'build/doc'),
                                       'all_files': ('setup.py', True),

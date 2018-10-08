@@ -24,7 +24,7 @@ from setuptools import setup
 setup(
     name='CIMM-REST',
     version=version(),
-    packages=['CIMM.REST', 'CIMM.REST.jobs', 'CIMM.REST.jobs.marshal', 'CIMM.REST.jobs.resources'],
+    packages=['CIMM.CLI', 'CIMM.REST', 'CIMM.REST.jobs', 'CIMM.REST.jobs.marshal', 'CIMM.REST.jobs.resources'],
     zip_safe=False,
     url='https://github.com/stsouko/ModelManager',
     license='AGPLv3',
@@ -33,7 +33,7 @@ setup(
     description='ChemoInformatics Models Manager',
     install_requires=['CIMM-CORE>=1.4.1,<1.5', 'pony>=0.7.6,<0.8', 'flask>=1.0.2,<1.1', 'flask_apispec>=0.7.0,<0.8',
                       'flask_login>=0.4.1,<0.5', 'rq>=0.12.0,<0.13', 'marshmallow>=3.0.0b16,<3.1'],
-    extras_require={'sphinx': ['sphinx>=1.6']},
+    extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="tools cgr cli",
     classifiers=['Environment :: Console',

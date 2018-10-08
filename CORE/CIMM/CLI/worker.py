@@ -25,11 +25,11 @@ from rq import Connection, Worker
 def cmd(subparsers):
     parser = subparsers.add_parser('worker', help='start models worker',
                                    formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
-    parser.add_argument('--config', '-c', default=None, type=FileType(), help='workers configuration file')
-    parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
-    parser.add_argument('--redis_pass', '-rp', default=None, type=str)
-    parser.add_argument('--redis_port', '-rr', default=6379, type=int)
+    parser.add_argument('--name', '-n', required=True, help='worker name')
+    parser.add_argument('--config', '-c', type=FileType(), help='workers configuration file')
+    parser.add_argument('--redis_host', '-rh', default='localhost')
+    parser.add_argument('--redis_pass', '-rp')
+    parser.add_argument('--redis_port', '-rr', type=int, default=6379)
 
     parser.set_defaults(func=run)
 

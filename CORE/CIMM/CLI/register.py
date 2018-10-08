@@ -29,15 +29,15 @@ from ..models import loader
 def cmd(subparsers):
     parser = subparsers.add_parser('register', help='register new models in db',
                                    formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--name', '-n', help='worker name', required=True, type=str)
+    parser.add_argument('--name', '-n', required=True, help='worker name')
     parser.add_argument('--config', '-c', type=FileType(), help='workers configuration file')
-    parser.add_argument('--redis_host', '-rh', default='localhost', type=str)
-    parser.add_argument('--redis_pass', '-rp', type=str)
-    parser.add_argument('--redis_port', '-rr', default=6379, type=int)
-    parser.add_argument('--url', '-u', type=str, help='dispatcher url', required=True)
-    parser.add_argument('--auth_url', '-au', type=str, help='dispatcher auth url')
-    parser.add_argument('--admin_user', '-aus', type=str, help='admin username')
-    parser.add_argument('--admin_pass', '-apw', type=str, help='admin password')
+    parser.add_argument('--redis_host', '-rh', default='localhost')
+    parser.add_argument('--redis_pass', '-rp')
+    parser.add_argument('--redis_port', '-rr', type=int, default=6379)
+    parser.add_argument('--url', '-u', required=True, help='dispatcher url')
+    parser.add_argument('--auth_url', '-au', help='dispatcher auth url')
+    parser.add_argument('--admin_user', '-aus', help='admin username')
+    parser.add_argument('--admin_pass', '-apw', help='admin password')
 
     parser.set_defaults(func=run)
 
