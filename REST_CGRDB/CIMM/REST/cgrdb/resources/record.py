@@ -30,7 +30,7 @@ from ....constants import TaskStatus, TaskType, StructureStatus, StructureType
 
 @doc(params={'database': {'description': 'database name', 'type': 'string'},
              'table': {'description': 'table name', 'type': 'string'},
-             'record': {'description': 'record id', 'type': 'int'}})
+             'record': {'description': 'record id', 'type': 'integer'}})
 @marshal_with(None, 403, 'user access deny')
 @marshal_with(None, 404, 'user/database/table/record not found')
 class Record(DataBaseMixin, JobMixin):
@@ -39,7 +39,7 @@ class Record(DataBaseMixin, JobMixin):
         """
         record with requested metadata id
         """
-        return self.get_record(database, table[0], record), 200
+        return self.get_record(database, table[1], record), 200
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema, 201, 'record updated')
@@ -56,13 +56,13 @@ class Record(DataBaseMixin, JobMixin):
         if task['type'] != TaskType.POPULATING:
             abort(406, message='invalid task type')
 
-        record = self.get_record(database, table[0], record)
+        record = self.get_record(database, table[1], record)
         data = task['structures'][0]
-        if data['status'] != StructureStatus.CLEAN or data['type'] != StructureType[table[1]]:
+        if data['status'] != StructureStatus.CLEAN or data['type'] != StructureType[table[2]]:
             abort(400, message='task structure has errors or invalid type')
 
         structure = data['data']
-        entity = self.structure_table(database, table[0])
+        entity = self.cgrdb_table(database, table[0])[0]
         in_db = entity.find_structure(structure)
 
         if in_db != record.structure:
@@ -75,7 +75,8 @@ class Record(DataBaseMixin, JobMixin):
             if not old.metadata.count():  # delete old structure without metadata
                 old.delete()
 
-        record.data = DocumentSchema(exclude=('structure', 'status', 'type')).dump(data)
+        record.data = DocumentSchema(exclude=('structure', 'status', 'type',
+                                              'additives.structure', 'additives.type')).dump(data)
         if record.user_id != current_user.id:
             record.user_id = current_user.id
         return record, 201
@@ -87,16 +88,16 @@ class Record(DataBaseMixin, JobMixin):
 
         if table is REACTION and reaction consist only this metadata record, then reaction also will be deleted.
         """
-        data = self.get_record(database, table[0], record)
+        data = self.get_record(database, table[1], record)
 
-        if data.structure.metadata.count() == 1 and table[1] == 'REACTION':
+        if data.structure.metadata.count() == 1 and table[2] == 'REACTION':
             data.structure.delete()
         else:
             data.delete()
         return data, 202
 
     def get_record(self, database, table, record):
-        entity, access = self.structure_table(database, table)
+        entity, access = self.cgrdb_table(database, table)
         try:
             data = entity[record]
         except ObjectNotFound:

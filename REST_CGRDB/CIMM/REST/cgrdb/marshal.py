@@ -31,8 +31,8 @@ class UserSchema(Schema):
 
 
 class DatabaseSchema(Schema):
-    id = Integer(attribute='database.id', dump_only=True)
-    name = String(required=True, attribute='database.name')
+    id = Integer(required=True, attribute='database.id')
+    name = String(attribute='database.name', dump_only=True)
     is_admin = Boolean(missing=False)
 
     @post_load

@@ -53,7 +53,7 @@ databases_view = DataBases.as_view('bases')
 blueprint.add_url_rule('/', view_func=databases_view, methods=['GET'])
 blueprint.add_url_rule('/users/<int(min=1):user>/', view_func=databases_view)
 
-blueprint.add_url_rule('/users', view_func=Users.as_view('users'))
+blueprint.add_url_rule('/users/', view_func=Users.as_view('users'))
 blueprint.add_url_rule('/users/<int(min=1):user>', view_func=User.as_view('user'))
 
 blueprint.add_url_rule('/<string:database>/<DBTable:table>/<int(min=1):record>', view_func=Record.as_view('record'))

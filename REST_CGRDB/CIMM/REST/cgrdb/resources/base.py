@@ -24,7 +24,7 @@ from ..marshal import DatabaseSchema
 from ...utils import abort, admin
 
 
-@doc(params={'user': {'description': 'user id', 'type': 'int'}})
+@doc(params={'user': {'description': 'user id', 'type': 'integer'}})
 @marshal_with(None, 401, 'user not authenticated')
 @marshal_with(None, 403, 'access denied')
 @marshal_with(None, 404, 'user/database not found')
@@ -53,18 +53,20 @@ class DataBases(DataBaseMixin):
     @marshal_with(DatabaseSchema, 201, 'database added to user')
     @marshal_with(DatabaseSchema, 202, 'database access rights updated')
     @marshal_with(None, 409, 'user already has this db')
-    def post(self, user, name, is_admin):
+    def post(self, user, **kwargs):
         try:
             user = self.database.User[user]
         except ObjectNotFound:
             abort(404, 'user not found')
 
-        base = self.database.DataBase.get(name=name)
-        if not base:
+        try:
+            base = self.database.DataBase[kwargs['id']]
+        except ObjectNotFound:
             abort(404, 'database not found')
 
         exists = self.database.UserBase.get(user=user, database=base)
         if exists:
+            is_admin = kwargs['is_admin']
             if exists.is_admin == is_admin:
                 abort(409, 'user already has this db')
             exists.is_admin = is_admin

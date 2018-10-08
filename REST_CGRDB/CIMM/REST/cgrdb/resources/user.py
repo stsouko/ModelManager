@@ -16,15 +16,16 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from flask import current_app
 from flask_apispec import marshal_with, use_kwargs, doc
 from flask_login import current_user
-from pony.orm import ObjectNotFound, max, raw_sql, select
+from pony.orm import ObjectNotFound, flush
 from .common import DataBaseMixin
 from ..marshal import UserSchema
 from ...utils import abort, admin
 
 
-@doc(params={'user': {'description': 'user id', 'type': 'int'}})
+@doc(params={'user': {'description': 'user id', 'type': 'integer'}})
 @marshal_with(None, 403, 'access denied')
 @marshal_with(None, 404, 'user not found')
 class User(DataBaseMixin):
@@ -85,10 +86,12 @@ class Users(DataBaseMixin):
             if self.user.exists(id=i):
                 abort(409, 'user already exists in db')
 
-            if i - max(x.id for x in self.user) > 1:
-                select(raw_sql("setval('user_id_seq', $(i - 1))") for x in self.user).first()
-
-        return self.user(**kwargs)
+            n = self.database.select(f"SELECT last_value FROM {current_app.config['CGRDB_DB_SCHEMA']}.user_id_seq")[0]
+            if i - n > 1:
+                self.database.execute(f"SELECT setval('{current_app.config['CGRDB_DB_SCHEMA']}.user_id_seq', {i - 1})")
+        user = self.user(**kwargs)
+        flush()
+        return user, 201
 
     @property
     def user(self):

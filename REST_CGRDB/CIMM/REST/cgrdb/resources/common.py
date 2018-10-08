@@ -36,8 +36,8 @@ class DataBaseMixin(MethodResource):
             self.__database = getattr(database, current_app.config['CGRDB_DB_SCHEMA'])
         return self.__database
 
-    def structure_table(self, name, table):
-        if self.__table is None:
+    def cgrdb_table(self, name, table):
+        if self.__access is None:
             try:
                 user = self.database.User[current_user.id]
             except ObjectNotFound:
@@ -54,17 +54,22 @@ class DataBaseMixin(MethodResource):
                 if not access:
                     abort(403, 'user access to database denied')
 
-            self.__table = getattr(current_app.config['CGRDB_LOADER'][name], table), access.is_admin
+            self.__access = access.is_admin
 
-        return self.__table
+        if self.__tables is None:
+            self.__tables = {}
 
-    __table = __database = None
+        table = self.__tables.get(table) or \
+            self.__tables.setdefault(table, getattr(current_app.config['CGRDB_LOADER'][name], table))
+        return table, self.__access
+
+    __access = __database = __tables = None
 
 
 class DBTableConverter(BaseConverter):
     def to_python(self, value):
         if value in ('Molecule', 'MOLECULE', 'molecule', 'mol', 'm', 'M'):
-            return 'MoleculeProperties', 'MOLECULE'
+            return 'Molecule', 'MoleculeProperties', 'MOLECULE'
         if value in ('Reaction', 'REACTION', 'reaction', 'r', 'R'):
-            return 'ReactionConditions', 'REACTION'
+            return 'Reaction', 'ReactionConditions', 'REACTION'
         raise ValidationError()

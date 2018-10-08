@@ -42,11 +42,11 @@ class RecordsCount(DataBaseMixin):
         """
         user's records count
         """
-        q = self.select_by_user(database, table[0], user).count()
+        q = self.select_by_user(database, table[1], user).count()
         return dict(total=q, pages=ceil(q / current_app.config.get('CGRDB_PAGESIZE', 30))), 200
 
     def select_by_user(self, database, table, user):
-        entity, access = self.structure_table(database, table)
+        entity, access = self.cgrdb_table(database, table)
         if user is None:
             user = current_user.id
         elif user != current_user.id and not access:
@@ -63,7 +63,7 @@ class RecordsFullList(RecordsCount):
         user's records
         """
         # todo: preload structures
-        return self.get_page(database, table[0], user, page), 200
+        return self.get_page(database, table[1], user, page), 200
 
     def get_page(self, database, table, user, page):
         return self.select_by_user(database, table, user).order_by(lambda x: x.id). \
@@ -73,7 +73,7 @@ class RecordsFullList(RecordsCount):
 class RecordsList(JobMixin, RecordsFullList):
     @marshal_with(RecordMetadataSchema(many=True), 200, 'records metadata')
     def get(self, database, table, page=1, user=None):
-        return self.get_page(database, table[0], user, page), 200
+        return self.get_page(database, table[1], user, page), 200
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(RecordSchema(many=True), 201, 'record saved')
@@ -89,12 +89,13 @@ class RecordsList(JobMixin, RecordsFullList):
         if task['type'] != TaskType.POPULATING:
             abort(404, 'invalid task type')
 
-        entity = self.structure_table(database, table[0])[0]
-        data_dump = DocumentSchema(exclude=('structure', 'status', 'type'))
+        entity = self.cgrdb_table(database, table[0])[0]
+        data_dump = DocumentSchema(exclude=('structure', 'status', 'type', 'additives.structure', 'additives.type'))
+        s_type = StructureType[table[2]]
 
         res = []
         for s in task['structures']:
-            if s['status'] != StructureStatus.CLEAN or s['type'] != StructureType[table[1]]:
+            if s['status'] != StructureStatus.CLEAN or s['type'] != s_type:
                 continue
             data = data_dump.dump(s)
             structure = s['data']
