@@ -64,13 +64,13 @@ class DataBases(DataBaseMixin):
         except ObjectNotFound:
             abort(404, 'database not found')
 
+        is_admin = kwargs['is_admin']
         exists = self.database.UserBase.get(user=user, database=base)
         if exists:
-            is_admin = kwargs['is_admin']
             if exists.is_admin == is_admin:
                 abort(409, 'user already has this db')
             exists.is_admin = is_admin
             return exists, 202
-        new = self.database.UserBase(user=user, database=base)
+        new = self.database.UserBase(user=user, database=base, is_admin=is_admin)
         flush()
         return new, 201
