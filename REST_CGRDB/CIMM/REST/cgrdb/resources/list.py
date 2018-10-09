@@ -43,7 +43,7 @@ class RecordsCount(DataBaseMixin):
         user's records count
         """
         q = self.select_by_user(database, table[1], user).count()
-        return dict(total=q, pages=ceil(q / current_app.config.get('CGRDB_PAGESIZE', 30))), 200
+        return dict(total=q, pages=self.page_number(q)), 200
 
     def select_by_user(self, database, table, user):
         entity, access = self.cgrdb_table(database, table)
@@ -52,6 +52,13 @@ class RecordsCount(DataBaseMixin):
         elif user != current_user.id and not access:
             abort(403, message="user access deny. you do not have permission to see another user's data")
         return entity.select(lambda x: x.user_id == user)
+
+    def page_number(self, count):
+        return ceil(count / self.page_size) or 1
+
+    @property
+    def page_size(self):
+        return current_app.config.get('CGRDB_PAGESIZE', 30)
 
 
 class RecordsFullList(RecordsCount):
@@ -66,8 +73,11 @@ class RecordsFullList(RecordsCount):
         return self.get_page(database, table[1], user, page), 200
 
     def get_page(self, database, table, user, page):
-        return self.select_by_user(database, table, user).order_by(lambda x: x.id). \
-            page(page, pagesize=current_app.config.get('CGRDB_PAGESIZE', 30))
+        q = self.select_by_user(database, table, user)
+        if self.page_number(q.count()) < page:
+            abort(404, 'page not found')
+
+        return q.order_by(lambda x: x.id).page(page, pagesize=self.page_size)
 
 
 class RecordsList(JobMixin, RecordsFullList):

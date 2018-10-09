@@ -18,25 +18,29 @@
 #
 from importlib import import_module
 from pkgutil import iter_modules
+from .. import REST
 
 
 def __getattr__(name):
-    apis = _scan_apis()
-    if name in apis:
-        module = import_module(f'{__package__}.{apis[name]}')
-        return module.blueprint
-    raise AttributeError(f"api '{name}' not found")
+    try:
+        return _apis[name]
+    except KeyError:
+        raise AttributeError(f"api '{name}' not found")
 
 
 def __dir__():
-    return list(_scan_apis())
+    return list(_apis)
 
 
 def _scan_apis():
     apis = {}
-    for module_info in iter_modules(import_module(__package__).__path__):
-        if module_info.ispkg:
-            module = import_module(f'{__package__}.{module_info.name}')
-            if hasattr(module, 'blueprint'):
-                apis[module.blueprint.name[5:]] = module_info.name
+    for module_info in iter_modules(REST.__path__):
+        if not module_info.ispkg:
+            continue
+        module = import_module(f'{__package__}.{module_info.name}')
+        if hasattr(module, 'blueprint'):
+            apis[module.blueprint.name[5:]] = module.blueprint
     return apis
+
+
+_apis = _scan_apis()

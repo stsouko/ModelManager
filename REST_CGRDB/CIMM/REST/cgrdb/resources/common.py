@@ -56,14 +56,9 @@ class DataBaseMixin(MethodResource):
 
             self.__access = access.is_admin
 
-        if self.__tables is None:
-            self.__tables = {}
+        return getattr(current_app.config['CGRDB_LOADER'][name], table), self.__access
 
-        table = self.__tables.get(table) or \
-            self.__tables.setdefault(table, getattr(current_app.config['CGRDB_LOADER'][name], table))
-        return table, self.__access
-
-    __access = __database = __tables = None
+    __access = __database = None
 
 
 class DBTableConverter(BaseConverter):

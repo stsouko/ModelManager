@@ -31,7 +31,7 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
-    install_requires=['CIMM-CORE>=1.4.1,<1.5', 'pony>=0.7.6,<0.8', 'flask>=1.0.2,<1.1', 'flask_apispec>=0.7.0,<0.8',
+    install_requires=['CIMM-CORE>=1.4.2,<1.5', 'pony>=0.7.6,<0.8', 'flask>=1.0.2,<1.1', 'flask_apispec>=0.7.0,<0.8',
                       'flask_login>=0.4.1,<0.5', 'rq>=0.12.0,<0.13', 'marshmallow>=3.0.0b16,<3.1'],
     extras_require={'autocomplete': ['argcomplete'], 'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),

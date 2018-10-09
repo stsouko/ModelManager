@@ -20,39 +20,45 @@ from importlib import import_module
 from pkgutil import iter_modules
 from traceback import format_exc
 from warnings import warn
+from .. import models
 
 
 def __getattr__(name):
-    models = _scan_models()
-    if name in models:
-        module = import_module(f'{__package__}.{models[name]}')
-        return getattr(module, name)
-    raise AttributeError(f"model '{name}' not found")
+    try:
+        return getattr(_found_models[name], name)
+    except KeyError:
+        raise AttributeError(f"model '{name}' not found")
 
 
 def __dir__():
-    return list(_scan_models())
+    return list(_found_models)
 
 
 def _scan_models():
-    models = {}
-    for module_info in iter_modules(import_module(__package__).__path__):
-        if module_info.ispkg:
-            try:
-                module = import_module(f'{__package__}.{module_info.name}')
-            except:
-                warn(f'{module_info.name} consist errors:\n {format_exc()}', ImportWarning)
-            else:
-                if hasattr(module, 'ModelLoader'):
-                    try:
-                        module = dir(module)
-                    except:
-                        warn(f'{module_info.name}.ModelLoader consist errors:\n {format_exc()}', ImportWarning)
+    found_models = {}
+    for module_info in iter_modules(models.__path__):
+        if not module_info.ispkg:
+            continue
 
-                    for model_name in module:
-                        if model_name in models:
-                            warn(f"{module_info.name}.ModelLoader has conflict model name '{model_name}' with "
-                                 f"{models[model_name]}.ModelLoader", ImportWarning)
-                        else:
-                            models[model_name] = module_info.name
-    return models
+        try:
+            module = import_module(f'{__package__}.{module_info.name}')
+        except:
+            warn(f'{module_info.name} consist errors:\n {format_exc()}', ImportWarning)
+            continue
+
+        try:
+            module_models = dir(module)
+        except:
+            warn(f'{module_info.name}.ModelLoader consist errors:\n {format_exc()}', ImportWarning)
+            continue
+
+        for model_name in module_models:
+            if model_name in found_models:
+                warn(f"{module_info.name} has conflict model name '{model_name}' with {models[model_name]}",
+                     ImportWarning)
+            else:
+                found_models[model_name] = module
+    return found_models
+
+
+_found_models = _scan_models()

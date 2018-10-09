@@ -50,8 +50,7 @@ class DataBases(DataBaseMixin):
 
     @admin
     @use_kwargs(DatabaseSchema)
-    @marshal_with(DatabaseSchema, 201, 'database added to user')
-    @marshal_with(DatabaseSchema, 202, 'database access rights updated')
+    @marshal_with(DatabaseSchema, 201, 'database added to user or access rights updated')
     @marshal_with(None, 409, 'user already has this db')
     def post(self, user, **kwargs):
         try:
@@ -60,17 +59,38 @@ class DataBases(DataBaseMixin):
             abort(404, 'user not found')
 
         try:
-            base = self.database.DataBase[kwargs['id']]
+            database = self.database.DataBase[kwargs['id']]
         except ObjectNotFound:
             abort(404, 'database not found')
 
         is_admin = kwargs['is_admin']
-        exists = self.database.UserBase.get(user=user, database=base)
+        exists = self.database.UserBase.get(user=user, database=database)
         if exists:
             if exists.is_admin == is_admin:
                 abort(409, 'user already has this db')
             exists.is_admin = is_admin
-            return exists, 202
-        new = self.database.UserBase(user=user, database=base, is_admin=is_admin)
+            return exists, 201
+        new = self.database.UserBase(user=user, database=database, is_admin=is_admin)
         flush()
         return new, 201
+
+    @admin
+    @marshal_with(DatabaseSchema, 202, 'database deleted from user')
+    @marshal_with(None, 404, 'user/database not exists or user has not this db')
+    def delete(self, user, database):
+        try:
+            user = self.database.User[user]
+        except ObjectNotFound:
+            abort(404, 'user not found')
+
+        try:
+            database = self.database.DataBase[database]
+        except ObjectNotFound:
+            abort(404, 'database not found')
+
+        exists = self.database.UserBase.get(user=user, database=database)
+        if not exists:
+            abort(404, 'user has not this db')
+
+        exists.delete()
+        return exists, 202

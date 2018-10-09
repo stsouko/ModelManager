@@ -20,6 +20,7 @@ from argparse import ArgumentParser
 from importlib import import_module
 from importlib.util import find_spec
 from pkgutil import iter_modules
+from .. import CLI
 from ..version import version
 
 
@@ -28,7 +29,7 @@ def run():
     parser.add_argument("--version", "-v", action="version", version=version(), default=False)
     subparsers = parser.add_subparsers(title='subcommands', description='available utilities')
 
-    for module_info in iter_modules(import_module(__package__).__path__):
+    for module_info in iter_modules(CLI.__path__):
         if not module_info.ispkg:
             module = import_module(f'{__package__}.{module_info.name}')
             if hasattr(module, 'cmd'):

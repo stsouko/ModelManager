@@ -29,5 +29,5 @@ def setup_documentation(state):
 blueprint = Blueprint('CIMM_MWUI_API', __name__)
 blueprint.record_once(setup_documentation)
 
-blueprint.add_url_rule('/login', view_func=LogIn.as_view('login'))
+blueprint.add_url_rule('/', view_func=LogIn.as_view('login'))
 blueprint.add_url_rule('/example/<int(min=1):_id>', view_func=ExampleView.as_view('example'))

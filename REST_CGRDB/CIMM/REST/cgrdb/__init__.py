@@ -51,7 +51,8 @@ blueprint.record_once(lambda state: state.app.url_map.converters.update(DBTable=
 
 databases_view = DataBases.as_view('bases')
 blueprint.add_url_rule('/', view_func=databases_view, methods=['GET'])
-blueprint.add_url_rule('/users/<int(min=1):user>/', view_func=databases_view)
+blueprint.add_url_rule('/users/<int(min=1):user>/', view_func=databases_view, methods=['GET', 'POST'])
+blueprint.add_url_rule('/users/<int(min=1):user>/<string:database>', view_func=databases_view, methods=['DELETE'])
 
 blueprint.add_url_rule('/users/', view_func=Users.as_view('users'))
 blueprint.add_url_rule('/users/<int(min=1):user>', view_func=User.as_view('user'))
