@@ -25,9 +25,9 @@ from shutil import rmtree
 from tempfile import mkdtemp
 from traceback import format_exc
 from warnings import warn
+from . import loader
 from ..additives import Additive
 from ..constants import ModelType, ResultType, StructureStatus, StructureType
-from ..models import loader
 
 
 def run(structures, model):
@@ -39,7 +39,7 @@ def run(structures, model):
                                 status: MWUI.constants[StructureStatus], type: MWUI.constants[StructureType]}
     :param model: model name
     :return: updated list of structure dicts. new key - models: [dict(result: [dict,], **model arg)]
-    
+
     if model not found or crashed return data without results in models[0]
     if model return list of results with size not equal to structures list size - raise exception. this model BAD! 
     """

@@ -38,17 +38,21 @@ def _scan_models():
     models = {}
     for module_info in iter_modules(import_module(__package__).__path__):
         if module_info.ispkg:
-            module = import_module(f'{__package__}.{module_info.name}')
-            if hasattr(module, 'ModelLoader'):
-                try:
-                    module = dir(module)
-                except:
-                    warn(f'{module_info.name}.ModelLoader consist errors:\n {format_exc()}', ImportWarning)
+            try:
+                module = import_module(f'{__package__}.{module_info.name}')
+            except:
+                warn(f'{module_info.name} consist errors:\n {format_exc()}', ImportWarning)
+            else:
+                if hasattr(module, 'ModelLoader'):
+                    try:
+                        module = dir(module)
+                    except:
+                        warn(f'{module_info.name}.ModelLoader consist errors:\n {format_exc()}', ImportWarning)
 
-                for model_name in module:
-                    if model_name in models:
-                        warn(f"{module_info.name}.ModelLoader has conflict model name '{model_name}' with "
-                             f"{models[model_name]}.ModelLoader", ImportWarning)
-                    else:
-                        models[model_name] = module_info.name
+                    for model_name in module:
+                        if model_name in models:
+                            warn(f"{module_info.name}.ModelLoader has conflict model name '{model_name}' with "
+                                 f"{models[model_name]}.ModelLoader", ImportWarning)
+                        else:
+                            models[model_name] = module_info.name
     return models
