@@ -103,15 +103,23 @@ saved_list_view = SavedList.as_view('saves')
 blueprint.add_url_rule('/saves/<string:task>', view_func=saved_view)
 blueprint.add_url_rule('/saves/<string:task>/pages/<int(min=1):page>', view_func=saved_view, methods=['GET'])
 blueprint.add_url_rule('/saves/<string:task>/meta', view_func=SavedMetadata.as_view('save_meta'))
-blueprint.add_url_rule('/saves', view_func=saved_list_view)
+blueprint.add_url_rule('/saves/', view_func=saved_list_view)
 blueprint.add_url_rule('/saves/pages/<int(min=1):page>', view_func=saved_list_view, methods=['GET'])
 blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count'))
 
-blueprint.add_url_rule('/models', view_func=AvailableModels.as_view('models'))
-blueprint.add_url_rule('/additives', view_func=AvailableAdditives.as_view('additives'))
+blueprint.add_url_rule('/models/', view_func=AvailableModels.as_view('models'))
+blueprint.add_url_rule('/additives/', view_func=AvailableAdditives.as_view('additives'))
 blueprint.add_url_rule('/magic', view_func=MagicNumbers.as_view('magic'))
 
 blueprint.add_url_rule('/subscribe', view_func=SubscribeAuth.as_view('subscribe_auth'))
 blueprint.add_url_rule('/subscribe/internal/<int:channel>',
                        view_func=PubSubURL.as_view('subscribe'), methods=['GET'])
 blueprint.add_url_rule('/publish/<int:channel>', view_func=PubSubURL.as_view('publish'), methods=['POST'])
+
+_config_ = {'JOBS_DB_SCHEMA': 'postgres schema',
+            'JOBS_REDIS_TIMEOUT': 'jobs run timeout',
+            'JOBS_REDIS_TTL': 'jobs results save time',
+            'JOBS_REDIS_CHUNK': 'amount of structures per page',
+            'JOBS_REDIS_CONFIG': 'redis connection config',
+            'JOBS_UPLOAD': 'path for upload of batch files',
+            'JOBS_DB_CONFIG': 'dict of postgres connection config'}

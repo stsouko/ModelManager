@@ -40,11 +40,18 @@ class SavedCount(MethodResource):
         user's saves count
         """
         q = self.tasks.select(lambda x: x.user == current_user.id).count()
-        return dict(total=q, pages=ceil(q / current_app.config.get('JOBS_REDIS_CHUNK', 50))), 200
+        return dict(total=q, pages=self.page_number(q)), 200
 
     @property
     def tasks(self):
         return getattr(database, current_app.config['JOBS_DB_SCHEMA']).Task
+
+    def page_number(self, count):
+        return ceil(count / self.page_size) or 1
+
+    @property
+    def page_size(self):
+        return current_app.config.get('JOBS_REDIS_CHUNK', 50)
 
 
 @doc(params={'task': {'description': 'task id', 'type': 'string'}})
@@ -56,9 +63,8 @@ class SavedMetadata(SavedCount):
         """
         task metadata
         """
-        chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         task = self.fetch(task)
-        return dict(task=task, structures={'total': task.size, 'pages': ceil(task.size / chunk)}), 200
+        return dict(task=task, structures={'total': task.size, 'pages': self.page_number(task.size)}), 200
 
     def fetch(self, task):
         task = self.tasks.get(task=task)
@@ -78,14 +84,15 @@ class Saved(SavedMetadata):
         """
         task with modeling results of structures with conditions
         """
-        chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         task = self.fetch(task)
-        structures = task.data
+
         if page:
-            cs = chunk * (page - 1)
-            if len(structures) <= cs:
+            if self.page_number(task.size) < page:
                 abort(404, 'page not found')
-            structures = structures[cs: chunk * page]
+            ps = self.page_size
+            structures = task.data[ps * (page - 1): ps * page]
+        else:
+            structures = task.data
 
         return dict(task=task, structures=structures), 200
 
@@ -109,8 +116,10 @@ class SavedList(JobMixin, SavedCount):
         """
         chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         q = self.tasks.select(lambda x: x.user == current_user.id)
-        if q.count() <= (page - 1) * chunk:
+
+        if self.page_number(q.count()) < page:
             abort(404, 'page not found')
+
         return q.page(page, pagesize=chunk), 200
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))

@@ -81,3 +81,8 @@ record_list_count_view = RecordsCount.as_view('list_count')
 blueprint.add_url_rule('/<string:database>/<DBTable:table>/pages', view_func=record_list_count_view)
 blueprint.add_url_rule('/users/<int(min=1):user>/<string:database>/<DBTable:table>/pages',
                        view_func=record_list_count_view)
+
+_config_ = {'CGRDB_DB_SCHEMA': 'postgres schema',
+            'CGRDB_PAGESIZE': 'amount of structures per page',
+            'CGRDB_LOADER_CONFIG': 'dict of postgres connection config for CGRdb cartridge',
+            'CGRDB_DB_CONFIG': 'dict of postgres connection config'}
