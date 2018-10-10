@@ -33,7 +33,7 @@ class User(DataBaseMixin):
     def get(self, user):
         return self.get_user(user), 200
 
-    @use_kwargs(UserSchema)
+    @use_kwargs(UserSchema(only=('name',)))
     @marshal_with(UserSchema, 201, 'user updated')
     @marshal_with(None, 422, 'invalid data')
     def post(self, user, **kwargs):

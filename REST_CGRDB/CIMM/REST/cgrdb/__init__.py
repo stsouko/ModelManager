@@ -55,7 +55,7 @@ blueprint.add_url_rule('/users/<int(min=1):user>/', view_func=databases_view, me
 blueprint.add_url_rule('/users/<int(min=1):user>/<string:database>', view_func=databases_view, methods=['DELETE'])
 
 blueprint.add_url_rule('/users/', view_func=Users.as_view('users'))
-blueprint.add_url_rule('/users/<int(min=1):user>', view_func=User.as_view('user'))
+blueprint.add_url_rule('/users/<int(min=1):user>/profile', view_func=User.as_view('user'))
 
 blueprint.add_url_rule('/<string:database>/<DBTable:table>/<int(min=1):record>', view_func=Record.as_view('record'))
 
@@ -78,8 +78,8 @@ blueprint.add_url_rule('/users/<int(min=1):user>/<string:database>/<DBTable:tabl
                        view_func=records_list_full_view)
 
 record_list_count_view = RecordsCount.as_view('list_count')
-blueprint.add_url_rule('/<string:database>/<DBTable:table>/pages', view_func=record_list_count_view)
-blueprint.add_url_rule('/users/<int(min=1):user>/<string:database>/<DBTable:table>/pages',
+blueprint.add_url_rule('/<string:database>/<DBTable:table>/pages/count', view_func=record_list_count_view)
+blueprint.add_url_rule('/users/<int(min=1):user>/<string:database>/<DBTable:table>/pages/count',
                        view_func=record_list_count_view)
 
 _config_ = {'CGRDB_DB_SCHEMA': 'postgres schema',

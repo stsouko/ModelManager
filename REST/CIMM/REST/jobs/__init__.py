@@ -99,13 +99,14 @@ blueprint.add_url_rule('/process/<string:task>/pages/<int(min=1):page>', view_fu
 blueprint.add_url_rule('/process/<string:task>/meta', view_func=ProcessMetadata.as_view('process_meta'))
 
 saved_view = Saved.as_view('save')
-saved_list_view = SavedList.as_view('saves')
 blueprint.add_url_rule('/saves/<string:task>', view_func=saved_view)
 blueprint.add_url_rule('/saves/<string:task>/pages/<int(min=1):page>', view_func=saved_view, methods=['GET'])
 blueprint.add_url_rule('/saves/<string:task>/meta', view_func=SavedMetadata.as_view('save_meta'))
+
+saved_list_view = SavedList.as_view('saves')
 blueprint.add_url_rule('/saves/', view_func=saved_list_view)
 blueprint.add_url_rule('/saves/pages/<int(min=1):page>', view_func=saved_list_view, methods=['GET'])
-blueprint.add_url_rule('/saves/pages', view_func=SavedCount.as_view('saves_count'))
+blueprint.add_url_rule('/saves/pages/count', view_func=SavedCount.as_view('saves_count'))
 
 blueprint.add_url_rule('/models/', view_func=AvailableModels.as_view('models'))
 blueprint.add_url_rule('/additives/', view_func=AvailableAdditives.as_view('additives'))

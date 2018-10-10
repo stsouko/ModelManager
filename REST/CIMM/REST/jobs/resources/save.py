@@ -114,13 +114,12 @@ class SavedList(JobMixin, SavedCount):
         """
         current user's saved tasks
         """
-        chunk = current_app.config.get('JOBS_REDIS_CHUNK', 50)
         q = self.tasks.select(lambda x: x.user == current_user.id)
 
         if self.page_number(q.count()) < page:
             abort(404, 'page not found')
 
-        return q.page(page, pagesize=chunk), 200
+        return q.page(page, pagesize=self.page_size), 200
 
     @use_kwargs({'task': String(required=True, description='task id')}, locations=('json',))
     @marshal_with(SavedMetadataSchema, 201, 'processed task saved')
