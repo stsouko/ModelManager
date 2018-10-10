@@ -80,14 +80,13 @@ def run(args):
         q = s.post(args.url, json=models)
         if q.status_code == 201:
             print(q.json())
-        elif q.status_code == 401:
-            if not args.auth_url:
-                print('need auth url')
+        elif not args.auth_url:
+            print('need auth url')
+        else:
+            q = s.post(args.auth_url, json={'password': args.admin_pass, 'email': args.admin_user})
+            if q.status_code != 201:
+                print('bad credentials')
             else:
-                q = s.post(args.auth_url, json={'password': args.admin_pass, 'email': args.admin_user})
-                if q.status_code != 201:
-                    print('bad credentials')
-                else:
-                    q = s.post(args.url, json=models)
-                    if q.status_code == 201:
-                        print(q.json())
+                q = s.post(args.url, json=models)
+                if q.status_code == 201:
+                    print(q.json())
