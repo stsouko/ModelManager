@@ -16,7 +16,6 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from collections import Counter
 from datetime import datetime
 from flask import current_app
 from flask_apispec import MethodResource, marshal_with
@@ -26,6 +25,7 @@ from pony.orm import db_session
 from redis import Redis, ConnectionError
 from uuid import uuid4
 from .. import database
+from ..utils import update_chunks
 from ...utils import abort
 from ....constants import TaskStatus
 
@@ -57,7 +57,7 @@ class JobMixin(MethodResource):
                     tmp[s] = _id
 
         self.redis.set(task_id, dumps({'chunks': tmp, 'jobs': jobs, 'user': current_user.id,
-                                       'type': _type, 'task': task_id,
+                                       'type': _type, 'task': task_id, 'date': datetime.utcnow(),
                                        'status': TaskStatus.PREPARED if status == TaskStatus.PREPARING else
                                                  TaskStatus.PROCESSED}), ex=ex)
 
@@ -132,56 +132,19 @@ class JobMixin(MethodResource):
             if any(x.is_queued or x.is_started for x in jobs):
                 abort(512, 'PROCESSING.Task not ready')
 
-            ended_at = None
-            flag = True
+            ended_at = task['date']
             for job in jobs:
-                if ended_at is None:
-                    ended_at = job.ended_at
-                elif job.ended_at > ended_at:
-                    ended_at = job.ended_at
-
                 if job.is_finished:
-                    self.__update_task(task['chunks'], job)
-                else:
-                    flag = False
+                    update_chunks(task['chunks'], job, self.redis, current_app.config.get('JOBS_REDIS_CHUNK', 50),
+                                  current_app.config.get('JOBS_REDIS_TTL', 86400))
+                    if job.ended_at > ended_at:
+                        ended_at = job.ended_at
                 job.delete()
 
             task['jobs'] = []
             task['date'] = ended_at
-            if flag:
-                self.redis.set(task_id, dumps(task), ex=current_app.config.get('JOBS_REDIS_TTL', 86400))
+            self.redis.set(task_id, dumps(task), ex=current_app.config.get('JOBS_REDIS_TTL', 86400))
         return task
-
-    def __update_task(self, chunks, job):
-        chunk_size = current_app.config.get('JOBS_REDIS_CHUNK', 50)
-        partial_chunk = next((c_id for c_id, fill in Counter(chunks.values()).items() if fill < chunk_size), None)
-        model = job.meta['model']
-
-        loaded_chunks = {}
-        for s in job.result:
-            results = dict(results=s.pop('results', []), model=model)
-            s_id = s['structure']
-            if s_id in chunks:
-                c_id = chunks[s_id]
-                ch = loaded_chunks.get(c_id) or loaded_chunks.setdefault(c_id, loads(self.redis.get(c_id)))
-                ch[s_id]['models'].append(results)
-            else:
-                if partial_chunk:
-                    ch = loaded_chunks.get(partial_chunk) or \
-                         loaded_chunks.setdefault(partial_chunk, loads(self.redis.get(partial_chunk)))
-                else:
-                    partial_chunk = str(uuid4())
-                    ch = loaded_chunks[partial_chunk] = {}
-
-                s['models'] = [results]
-                ch[s_id] = s
-                chunks[s_id] = partial_chunk
-
-                if len(ch) == chunk_size:
-                    partial_chunk = None
-
-        for c_id, chunk in loaded_chunks.items():
-            self.redis.set(c_id, dumps(chunk), ex=current_app.config.get('JOBS_REDIS_TTL', 86400))
 
     __redis_cache = __models_cache = __destinations_cache = None
 

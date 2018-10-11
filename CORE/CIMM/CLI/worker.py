@@ -41,7 +41,8 @@ def run(args):
         redis_pass = args.redis_pass
         redis_port = args.redis_port
     else:
-        config = ConfigParser().read_file(args.config)
+        config = ConfigParser()
+        config.read_file(args.config)
         try:
             redis_host = config[args.name].get('redis_host', 'localhost')
             redis_pass = config[args.name].get('redis_pass', None)

@@ -115,7 +115,7 @@ blueprint.add_url_rule('/magic', view_func=MagicNumbers.as_view('magic'))
 blueprint.add_url_rule('/subscribe', view_func=SubscribeAuth.as_view('subscribe_auth'))
 blueprint.add_url_rule('/subscribe/internal/<int:channel>',
                        view_func=PubSubURL.as_view('subscribe'), methods=['GET'])
-blueprint.add_url_rule('/publish/<int:channel>', view_func=PubSubURL.as_view('publish'), methods=['POST'])
+
 
 _config_ = {'JOBS_DB_SCHEMA': 'postgres schema',
             'JOBS_REDIS_TIMEOUT': 'jobs run timeout',

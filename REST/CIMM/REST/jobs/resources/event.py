@@ -31,7 +31,5 @@ class SubscribeAuth(MethodView):
 
 
 class PubSubURL(View):
-    methods = ('GET', 'POST')
-
     def dispatch_request(self, channel):
         return 'USE NGINX NCHAN'
