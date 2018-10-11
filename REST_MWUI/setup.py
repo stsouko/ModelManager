@@ -31,7 +31,7 @@ setup(
     author='Dr. Ramil Nugmanov',
     author_email='stsouko@live.ru',
     description='ChemoInformatics Models Manager',
-    install_requires=['CIMM-REST>=1.4.2,<1.5', 'MWUI'],
+    install_requires=['CIMM-REST>=1.4.2,<1.5'],
     extras_require={'sphinx': ['sphinx>=1.6']},
     long_description=(Path(__file__).parent / 'README.md').open().read(),
     keywords="tools cgr cli",

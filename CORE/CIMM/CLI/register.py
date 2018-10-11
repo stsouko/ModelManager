@@ -16,8 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from argparse import ArgumentDefaultsHelpFormatter, FileType
-from configparser import ConfigParser
+from argparse import ArgumentDefaultsHelpFormatter
 from requests import Session
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -30,7 +29,6 @@ def cmd(subparsers):
     parser = subparsers.add_parser('register', help='register new models in db',
                                    formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('--name', '-n', required=True, help='worker name')
-    parser.add_argument('--config', '-c', type=FileType(), help='workers configuration file')
     parser.add_argument('--redis_host', '-rh', default='localhost')
     parser.add_argument('--redis_pass', '-rp')
     parser.add_argument('--redis_port', '-rr', type=int, default=6379)
@@ -43,22 +41,9 @@ def cmd(subparsers):
 
 
 def run(args):
-    if args.config is None:
-        redis_host = args.redis_host
-        redis_pass = args.redis_pass
-        redis_port = args.redis_port
-    else:
-        config = ConfigParser().read_file(args.config)
-        try:
-            redis_host = config[args.name].get('redis_host', 'localhost')
-            redis_pass = config[args.name].get('redis_pass', None)
-            redis_port = config[args.name].get('redis_port', 6379)
-        except KeyError:
-            raise KeyError(f"worker '{args.name}' config not found")
-
-    destination = dict(name=args.name, host=redis_host, port=redis_port)
-    if redis_pass:
-        destination['password'] = redis_pass
+    destination = dict(name=args.name, host=args.redis_host, port=args.redis_port)
+    if args.redis_pass:
+        destination['password'] = args.redis_pass
 
     models = []
     for m in dir(loader):

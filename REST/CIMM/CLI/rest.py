@@ -16,8 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
-from argparse import ArgumentDefaultsHelpFormatter, FileType
-from configparser import ConfigParser
+from argparse import ArgumentDefaultsHelpFormatter
 from pony.orm import db_session
 from ..constants import ModelType
 from ..REST.jobs import database
@@ -26,15 +25,14 @@ from ..REST.jobs import database
 def cmd(subparsers):
     parser = subparsers.add_parser('init_rest_db', help='init models db',
                                    formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--user', '-u', default='postgres', help='admin login')
-    parser.add_argument('--password', '-p', required=True, help='admin pass')
-    parser.add_argument('--host', '-H', default='localhost', help='host name')
+    parser.add_argument('--user', '-u', default='postgres', help='database login')
+    parser.add_argument('--password', '-p', required=True, help='database pass')
+    parser.add_argument('--host', '-H', default='localhost', help='database host name')
     parser.add_argument('--port', '-P', type=int, default=5432, help='database port')
     parser.add_argument('--base', '-b', default='postgres', help='database name')
-    parser.add_argument('--name', '-n', required=True, help='schema name')
+    parser.add_argument('--name', '-n', required=True, help='access schema name')
 
     parser.add_argument('--worker', '-w', required=True, help='worker name')
-    parser.add_argument('--config', '-c', type=FileType(), help='workers configuration file')
     parser.add_argument('--redis_host', '-rh', default='localhost')
     parser.add_argument('--redis_pass', '-rp')
     parser.add_argument('--redis_port', '-rr', type=int, default=6379)
@@ -43,19 +41,6 @@ def cmd(subparsers):
 
 
 def run(args):
-    if args.config is None:
-        redis_host = args.redis_host
-        redis_pass = args.redis_pass
-        redis_port = args.redis_port
-    else:
-        config = ConfigParser().read_file(args.config)
-        try:
-            redis_host = config[args.name].get('redis_host', 'localhost')
-            redis_pass = config[args.name].get('redis_pass', None)
-            redis_port = config[args.name].get('redis_port', 6379)
-        except KeyError:
-            raise KeyError(f"worker '{args.worker}' config not found")
-
     db = getattr(database, args.name)
     db.bind('postgres', user=args.user, password=args.password, host=args.host, database=args.base, port=args.port)
     db.generate_mapping(create_tables=True)
@@ -63,4 +48,4 @@ def run(args):
     with db_session:
         p = db.Model(name='Structure Preparer', description='Structure Preparer', type=ModelType.PREPARER,
                      object='Preparer', example={})
-        db.Destination(model=p, name=args.worker, host=redis_host, port=redis_port, password=redis_pass)
+        db.Destination(model=p, name=args.worker, host=args.redis_host, port=args.redis_port, password=args.redis_pass)

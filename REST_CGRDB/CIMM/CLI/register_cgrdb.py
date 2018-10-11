@@ -24,12 +24,12 @@ from ..REST.cgrdb import database
 def cmd(subparsers):
     parser = subparsers.add_parser('register_cgrdb', help='register new structures db in cgrdb user access db',
                                    formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--user', '-u', default='postgres', help='admin login')
-    parser.add_argument('--password', '-p', required=True, help='admin pass')
-    parser.add_argument('--host', '-H', default='localhost', help='host name')
+    parser.add_argument('--user', '-u', default='postgres', help='database login')
+    parser.add_argument('--password', '-p', required=True, help='database pass')
+    parser.add_argument('--host', '-H', default='localhost', help='database host name')
     parser.add_argument('--port', '-P', type=int, default=5432, help='database port')
     parser.add_argument('--base', '-b', default='postgres', help='database name')
-    parser.add_argument('--name', '-n', required=True, help='schema name')
+    parser.add_argument('--name', '-n', required=True, help='access schema name')
     parser.add_argument('--cgrdb', '-c', required=True, help='cgrdb schema name')
 
     parser.set_defaults(func=run)

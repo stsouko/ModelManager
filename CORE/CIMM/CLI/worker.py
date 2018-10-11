@@ -18,6 +18,7 @@
 #
 from argparse import ArgumentDefaultsHelpFormatter, FileType
 from configparser import ConfigParser
+from pickle import dumps
 from redis import Redis
 from rq import Connection, Worker
 
@@ -55,4 +56,4 @@ def run(args):
 class EventWorker(Worker):
     def execute_job(self, job, queue):
         super().execute_job(job, queue)
-        self.connection.publish('done_jobs', job.id)
+        self.connection.publish('done_jobs', dumps((self.queues[0].name, job.id)))
