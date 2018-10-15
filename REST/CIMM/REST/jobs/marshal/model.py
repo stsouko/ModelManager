@@ -33,8 +33,8 @@ class DestinationSchema(Schema):
 
 
 class DeployModelSchema(EmptyCheck, Schema):
-    name = String(required=True, validate=Length(5, 100), description='name of model')
-    object = String(required=True, validate=Length(5, 50), description='internal name of model')
+    name = String(required=True, validate=Length(5, 200), description='name of model')
+    object = String(required=True, validate=Length(3, 50), description='internal name of model')
     type = IntEnumField(ModelType, required=True, description='type of model')
     description = String(required=True, validate=Length(10), description='description of model')
     example = Nested(CreatingDocumentSchema, required=True)
