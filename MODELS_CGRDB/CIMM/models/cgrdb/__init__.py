@@ -44,7 +44,7 @@ class ModelLoader:
         self.__workpath = workpath
 
     def __new__(cls, name, *args, **kwargs):
-        if name not in cls._get_models():
+        if name not in cls.__names:
             raise NameError(f"model '{name}' not found")
         return super().__new__(cls)
 

@@ -1,0 +1,16 @@
+[
+  {"name": "visible name",
+   "object": "dump_name (use rules for python variable naming. without extension. extensions for MUSTDIE users. MUSTDIE SUCKS)",
+   "description": "words about model",
+   "type": 1 for molecule 2 for reactions,
+   "example": {"data": "CCBr.CNC>>CCN(C)C.Br",
+               "temperature": 298,
+               "additives": [
+                             {"additive": 6,
+                              "amount": 1
+                             }
+                            ]
+              },
+   "units": "log k"
+  }
+]
