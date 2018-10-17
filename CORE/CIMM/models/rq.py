@@ -46,6 +46,7 @@ def run(structures, model):
     def fail_prep(reason):
         for s in structures:
             s['results'] = [dict(result='Modeling Failed', data=reason, type=ResultType.TEXT)]
+        rmtree(workpath)
         return structures
 
     workpath = mkdtemp()
@@ -53,37 +54,36 @@ def run(structures, model):
         mod = getattr(loader, model)(workpath)
     except:
         warn(f'Model not found or not loadable.\n{format_exc()}', ImportWarning)
-        rmtree(workpath)
         return fail_prep('Model not found or not loadable')
 
     try:
         results = mod([x.copy() for x in structures])
     except:
-        warn(f'Model not working:\n{format_exc()}', UserWarning)
-        rmtree(workpath)
+        warn(f'Model not working:\n{format_exc()}')
         return fail_prep('Model not working')
 
-    rmtree(workpath)
     if not results:
         return fail_prep('Model returned nothing')
 
     if len(results) != len(structures) and mod.type not in (ModelType.MOLECULE_SEARCHING,
                                                             ModelType.REACTION_SEARCHING):
-        warn('Model lost structures. check model code for correctness', UserWarning)
+        warn('Model lost structures. check model code for correctness')
         return fail_prep('Model lost data')
 
     if mod.type in (ModelType.REACTION_MODELING, ModelType.MOLECULE_MODELING):
         if any(s[x] != r[x] for s, r in zip(structures, results)
                for x in ('data', 'structure', 'status', 'type', 'temperature', 'pressure', 'additives', 'description')):
-            warn('Editing structure, properties and meta denied! ONLY results assign possible!', UserWarning)
+            warn('Editing structure, properties and meta denied! ONLY results assign possible!')
             return fail_prep('Model broke data')
 
     if mod.type == ModelType.PREPARER:
         if any(s[x] != r[x] for s, r in zip(structures, results) for x in ('structure', 'additives', 'description')):
             warn('Editing meta denied! '
-                 'ONLY results assigning, data, temperature, pressure type and status editing possible!', UserWarning)
+                 'ONLY results assigning, data, temperature, pressure type and status editing possible!')
             return fail_prep('Preparing model not working')
 
+    del mod
+    rmtree(workpath)
     return results
 
 

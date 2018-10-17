@@ -16,32 +16,21 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 #
+from flask import jsonify
 from flask_apispec import FlaskApiSpec
 from flask_apispec.extension import make_apispec
 from flask_login import current_user
 from functools import wraps
-from werkzeug.exceptions import HTTPException, Aborter
+from webargs.flaskparser import FlaskParser
+from werkzeug.exceptions import HTTPException
 
 
-def abort(http_status_code, message=None, **kwargs):
+def abort(code, message=None):
     """ copy-paste from flask-restful
     """
-    try:
-        original_flask_abort(http_status_code)
-    except HTTPException as e:
-        if message:
-            kwargs['message'] = str(message)
-        if kwargs:
-            e.data = kwargs
-        raise
-
-
-class Abort512(HTTPException):
-    code = 512
-    description = 'task not ready'
-
-
-original_flask_abort = Aborter(extra={512: Abort512})
+    response = jsonify(error=message)
+    response.status_code = code
+    raise HTTPException(response=response)
 
 
 class Documentation:
@@ -53,6 +42,9 @@ class Documentation:
     def init_app(cls, app):
         if 'APISPEC_SPEC' not in app.config:
             app.config['APISPEC_SPEC'] = make_apispec('CIMM API', '2.0')
+        if 'APISPEC_WEBARGS_PARSER' not in app.config:
+            app.config['APISPEC_WEBARGS_PARSER'] = parser = FlaskParser()
+            parser.error_handler(lambda error, *_: abort(error.status_code, error.messages))
 
         cls.__doc.init_app(app)
 

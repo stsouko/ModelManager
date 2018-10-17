@@ -120,10 +120,15 @@ def run(args):
 
                 name, _id = loads(message['data'])
                 job = queues[hpp][name].fetch_job(_id)
+                if not job:
+                    warn(f"invalid job id '{_id}' for worker '{name}' on host '{hpp}'")
+                    continue
+
                 task_id = job.meta['task']
                 task = redis.get(task_id)
                 if not task:
-                    raise KeyError
+                    warn(f"job has invalid task id '{task_id}'")
+                    continue
 
                 task = loads(task)
                 task['jobs'] = [x for x in task['jobs'] if x[2] != _id]
@@ -137,8 +142,7 @@ def run(args):
 
                 if not task['jobs']:
                     post(publish_url + str(task['user']), data=task_id)
-            except KeyError:
-                warn('unknown worker', UserWarning)
+
             except ConnectionError:
-                warn(f'redis connection error:\n{format_exc()}', UserWarning)
+                warn(f'redis connection error:\n{format_exc()}')
         sleep(2)
