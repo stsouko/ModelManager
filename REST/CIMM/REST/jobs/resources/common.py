@@ -90,7 +90,8 @@ class JobMixin(MethodResource):
     def fetch_meta(self, task, status):
         result = self.__fetch(task, status)
         chunks = result['chunks']
-        return {'structures': {'total': len(chunks), 'pages': len(set(chunks.values())) or 1}, **result}
+        return {'structures': {'total': len(chunks), 'pages': len(set(chunks.values())) or 1,
+                               'size': current_app.config.get('JOBS_REDIS_CHUNK', 50)}, **result}
 
     def fetch(self, task, status, page=None):
         result = self.__fetch(task, status)

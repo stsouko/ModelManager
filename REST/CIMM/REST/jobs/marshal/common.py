@@ -24,6 +24,7 @@ from marshmallow.validate import ValidationError
 class CountSchema(Schema):
     total = Integer(description='amount of available data')
     pages = Integer(description='amount of pages of data')
+    size = Integer(description='size of page')
 
 
 class EmptyCheck:

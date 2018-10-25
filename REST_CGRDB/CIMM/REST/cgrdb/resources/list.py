@@ -43,7 +43,7 @@ class RecordsCount(DataBaseMixin):
         user's records count
         """
         q = self.select_by_user(database, table[1], user).count()
-        return dict(total=q, pages=self.page_number(q)), 200
+        return dict(total=q, pages=self.page_number(q), size=self.page_size), 200
 
     def select_by_user(self, database, table, user):
         entity, access = self.cgrdb_table(database, table)

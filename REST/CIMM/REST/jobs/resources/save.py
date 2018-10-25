@@ -40,7 +40,7 @@ class SavedCount(MethodResource):
         user's saves count
         """
         q = self.tasks.select(lambda x: x.user == current_user.id).count()
-        return dict(total=q, pages=self.page_number(q)), 200
+        return dict(total=q, pages=self.page_number(q), size=self.page_size), 200
 
     @property
     def tasks(self):
@@ -64,7 +64,8 @@ class SavedMetadata(SavedCount):
         task metadata
         """
         task = self.fetch(task)
-        return dict(task=task, structures={'total': task.size, 'pages': self.page_number(task.size)}), 200
+        return dict(task=task, structures={'total': task.size, 'pages': self.page_number(task.size),
+                                           'size': self.page_size}), 200
 
     def fetch(self, task):
         task = self.tasks.get(task=task)
